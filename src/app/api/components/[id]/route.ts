@@ -1,11 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { rateLimit } from '@/lib/rate-limit'
 
 type Params = { params: Promise<{ id: string }> }
 
 const DAY = 86_400_000
 
 export async function PATCH(req: NextRequest, { params }: Params) {
+  const rl = rateLimit(req, 'write', 'components')
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: 'Terlalu banyak permintaan' },
+      { status: 429, headers: { 'Retry-After': String(rl.retryAfterSec) } }
+    )
+  }
   try {
     const { id } = await params
     const body = await req.json()
@@ -62,7 +70,14 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 }
 
 // Lepas komponen (masuk katalog "Ketuk untuk Menambah")
-export async function DELETE(_req: NextRequest, { params }: Params) {
+export async function DELETE(req: NextRequest, { params }: Params) {
+  const rl = rateLimit(req, 'write', 'components')
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: 'Terlalu banyak permintaan' },
+      { status: 429, headers: { 'Retry-After': String(rl.retryAfterSec) } }
+    )
+  }
   try {
     const { id } = await params
     const component = await db.component.findUnique({
