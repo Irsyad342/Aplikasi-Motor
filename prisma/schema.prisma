@@ -1,0 +1,76 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Vehicle {
+  id        String      @id @default(cuid())
+  name      String
+  type      String      @default("motor") // motor | mobil
+  plate     String?
+  odometer  Int         @default(0) // in km
+  imageKey  String      @default("motor-green")
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  components Component[]
+  trips      Trip[]
+}
+
+model Component {
+  id              String          @id @default(cuid())
+  vehicleId       String
+  vehicle         Vehicle         @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  key             String // catalog key, e.g. "oli-mesin"
+  name            String
+  icon            String // icon key, e.g. "droplets"
+  intervalKm      Int // service interval in km (0 = time-based only)
+  intervalDays    Int // service interval in days
+  recommendedKm   Int
+  recommendedDays Int
+  lastServiceOdo  Int @default(0) // odometer at last service/install
+  lastServiceDate DateTime @default(now())
+  hasService      Boolean @default(false) // false -> "Servis Terakhir: Tidak tersedia"
+  installed       Boolean @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  records         ServiceRecord[]
+
+  @@unique([vehicleId, key])
+  @@index([vehicleId])
+}
+
+model ServiceRecord {
+  id          String    @id @default(cuid())
+  componentId String
+  component   Component @relation(fields: [componentId], references: [id], onDelete: Cascade)
+  vehicleId   String
+  type        String    @default("ganti") // ganti | servis
+  odometer    Int
+  date        DateTime  @default(now())
+  note        String?
+  createdAt   DateTime  @default(now())
+
+  @@index([vehicleId])
+  @@index([componentId])
+}
+
+model Trip {
+  id        String   @id @default(cuid())
+  vehicleId String
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  distance  Float    @default(0) // in km
+  duration  Int      @default(0) // in seconds
+  startOdo  Int      @default(0)
+  endOdo    Int      @default(0)
+  source    String   @default("manual") // manual | auto
+  path      String? // JSON array [lat,lng][] rute perjalanan
+  startedAt DateTime @default(now())
+  endedAt   DateTime @default(now())
+
+  @@index([vehicleId])
+}

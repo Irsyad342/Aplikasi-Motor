@@ -1,0 +1,52 @@
+{
+  "name": "RideCheck — Pelacak Perawatan Motor",
+  "short_name": "RideCheck",
+  "description": "Pantau kondisi komponen motor, catat servis, lacak perjalanan real-time, dan temukan bengkel terdekat di Pulau Jawa.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "fullscreen", "minimal-ui"],
+  "orientation": "portrait",
+  "background_color": "#f2f3f5",
+  "theme_color": "#0ea5e9",
+  "lang": "id",
+  "dir": "ltr",
+  "categories": ["utilities", "travel", "auto"],
+  "icons": [
+    {
+      "src": "/images/app-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/app-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/app-icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Lacak Perjalanan",
+      "short_name": "Perjalanan",
+      "description": "Rekam perjalanan dengan GPS langsung",
+      "url": "/?view=perjalanan",
+      "icons": [{ "src": "/images/app-icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Cari Bengkel",
+      "short_name": "Bengkel",
+      "description": "Bengkel terdekat di Pulau Jawa",
+      "url": "/?view=bengkel",
+      "icons": [{ "src": "/images/app-icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
