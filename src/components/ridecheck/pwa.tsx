@@ -8,9 +8,13 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
 }
 
-/** Daftarkan service worker (sekali per load) */
+/** Daftarkan service worker (sekali per load) — hanya di production.
+ *  Di development SW mem-cache chunk Next.js tanpa hash sehingga kode
+ *  lama terus disajikan meski sudah hot-reload. Produksi memakai chunk
+ *  ber-hash, jadi cache-first tetap aman di sana. */
 export function ServiceWorkerRegister() {
   useEffect(() => {
+    if (process.env.NODE_ENV === 'development') return
     if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return
     const register = () => {
       navigator.serviceWorker.register('/sw.js').catch(() => {

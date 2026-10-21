@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import 'leaflet/dist/leaflet.css'
 import { Bike, Crosshair, MapPin, Navigation } from 'lucide-react'
 import type { Bengkel } from '@/lib/bengkel'
+import { DEFAULT_LOCATION, haversineKm } from '@/lib/geo'
 import { cn } from '@/lib/utils'
 
 type LMap = import('leaflet').Map
@@ -110,13 +111,14 @@ export function LiveTripMap({
 }) {
   const holder = useRef<HTMLDivElement>(null)
   const { map, ready } = useLeafletMap(holder, {
-    center: current ?? [-6.1754, 106.8272],
+    center: current ?? [DEFAULT_LOCATION.lat, DEFAULT_LOCATION.lng],
     zoom: 16,
   })
   const [follow, setFollow] = useState(true)
   const lineRef = useRef<LPolyline | null>(null)
   const markerRef = useRef<LMarker | null>(null)
   const startRef = useRef<import('leaflet').CircleMarker | null>(null)
+  const startPosRef = useRef<[number, number] | null>(null)
 
   // buat layer saat peta siap
   useEffect(() => {
@@ -149,6 +151,7 @@ export function LiveTripMap({
       lineRef.current = null
       markerRef.current = null
       startRef.current = null
+      startPosRef.current = null
     }
   }, [ready, map])
 
@@ -156,6 +159,17 @@ export function LiveTripMap({
   useEffect(() => {
     if (!ready || !lineRef.current || !markerRef.current) return
     lineRef.current.setLatLngs(path as LLatLng[])
+    // marker titik mulai ikut pindah bila rute direset ke lokasi GPS nyata
+    if (path.length > 0 && startRef.current && startPosRef.current) {
+      const moved = haversineKm(
+        { lat: startPosRef.current[0], lng: startPosRef.current[1] },
+        { lat: path[0][0], lng: path[0][1] }
+      )
+      if (moved > 0.05) {
+        startRef.current.setLatLng(path[0] as LLatLng)
+        startPosRef.current = path[0]
+      }
+    }
     if (current) {
       markerRef.current.setLatLng(current)
       const el = markerRef.current.getElement()?.querySelector('svg')
@@ -180,6 +194,7 @@ export function LiveTripMap({
         fillColor: '#22c55e',
         fillOpacity: 1,
       }).addTo(map.current!)
+      startPosRef.current = path[0]
     }
     void add()
   }, [ready, path, map])
@@ -235,7 +250,10 @@ export function RouteMap({
   className?: string
 }) {
   const holder = useRef<HTMLDivElement>(null)
-  const { map, ready } = useLeafletMap(holder, { center: path[0] ?? [-6.1754, 106.8272], zoom: 15 })
+  const { map, ready } = useLeafletMap(holder, {
+    center: path[0] ?? [DEFAULT_LOCATION.lat, DEFAULT_LOCATION.lng],
+    zoom: 15,
+  })
 
   useEffect(() => {
     if (!ready || !map.current || path.length < 2) return
@@ -284,6 +302,7 @@ export function BengkelMap({
   selectedId,
   onSelect,
   userPos,
+  accuracy,
   className,
 }: {
   center: [number, number]
@@ -292,6 +311,8 @@ export function BengkelMap({
   selectedId: string | null
   onSelect: (id: string) => void
   userPos: { lat: number; lng: number } | null
+  /** akurasi GPS dalam meter (opsional) untuk lingkaran ketidakpastian */
+  accuracy?: number | null
   className?: string
 }) {
   const holder = useRef<HTMLDivElement>(null)
@@ -299,9 +320,38 @@ export function BengkelMap({
   const markersRef = useRef<Map<string, LMarker>>(new Map())
   const userRef = useRef<LMarker | null>(null)
   const circleRef = useRef<import('leaflet').Circle | null>(null)
+  const accCircleRef = useRef<import('leaflet').Circle | null>(null)
+  const userMovedRef = useRef(false)
+  const prevCenterRef = useRef<string | null>(null)
   const fittedRef = useRef('')
   const onSelectRef = useRef(onSelect)
   onSelectRef.current = onSelect
+
+  // deteksi geser/zoom manual agar peta tidak "diculik" saat posisi GPS update
+  useEffect(() => {
+    if (!ready || !map.current) return
+    const m = map.current
+    const mark = () => {
+      userMovedRef.current = true
+    }
+    m.on('dragstart', mark)
+    m.on('zoomstart', mark)
+    return () => {
+      m.off('dragstart', mark)
+      m.off('zoomstart', mark)
+    }
+  }, [ready, map])
+
+  // titik acuan berubah (GPS fix masuk / ganti kota) -> pusatkan peta,
+  // kecuali pengguna sedang menjelajah peta sendiri
+  useEffect(() => {
+    if (!ready || !map.current) return
+    const key = `${center[0]},${center[1]}`
+    const prev = prevCenterRef.current
+    prevCenterRef.current = key
+    if (prev === null || prev === key || userMovedRef.current) return
+    map.current.panTo(center as LLatLng, { animate: true, duration: 0.6 })
+  }, [ready, center, map])
 
   // render ulang marker ketika daftar berubah
   useEffect(() => {
@@ -358,7 +408,7 @@ export function BengkelMap({
     }
   }, [ready, bengkel, selectedId, center, radiusKm, map])
 
-  // marker posisi pengguna
+  // marker posisi pengguna + lingkaran akurasi GPS
   useEffect(() => {
     if (!ready || !map.current) return
     let cancelled = false
@@ -367,7 +417,19 @@ export function BengkelMap({
       if (cancelled || !map.current) return
       userRef.current?.remove()
       userRef.current = null
+      accCircleRef.current?.remove()
+      accCircleRef.current = null
       if (!userPos) return
+      if (typeof accuracy === 'number' && accuracy > 0) {
+        accCircleRef.current = L.circle([userPos.lat, userPos.lng] as LLatLng, {
+          radius: Math.min(Math.max(accuracy, 8), 500),
+          color: '#3b82f6',
+          weight: 1,
+          opacity: 0.4,
+          fillColor: '#3b82f6',
+          fillOpacity: 0.07,
+        }).addTo(map.current!)
+      }
       userRef.current = L.marker([userPos.lat, userPos.lng] as LLatLng, {
         icon: L.divIcon({
           html: userDotHtml(),
@@ -383,7 +445,7 @@ export function BengkelMap({
     return () => {
       cancelled = true
     }
-  }, [ready, userPos, map])
+  }, [ready, userPos, accuracy, map])
 
   // pilih marker -> pan
   useEffect(() => {
@@ -396,6 +458,18 @@ export function BengkelMap({
     <div className={cn('relative overflow-hidden rounded-3xl shadow-sm', className)}>
       <style>{RC_PING_CSS}</style>
       <div ref={holder} className="h-full w-full" aria-label="Peta bengkel" />
+      <button
+        type="button"
+        onClick={() => {
+          userMovedRef.current = false
+          prevCenterRef.current = `${center[0]},${center[1]}`
+          map.current?.flyTo(center as LLatLng, 14, { duration: 0.5 })
+        }}
+        aria-label="Pusatkan ke titik acuan"
+        className="absolute right-3 top-3 z-[500] flex h-10 w-10 items-center justify-center rounded-full bg-white text-sky-600 shadow-lg transition-colors active:scale-95"
+      >
+        <Crosshair size={19} />
+      </button>
       <div className="pointer-events-none absolute bottom-3 left-3 z-[500] flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1.5 text-[10px] font-bold text-zinc-600 shadow">
         <MapPin size={11} className="text-sky-500" />
         Resmi

@@ -28,6 +28,8 @@ export function BengkelView() {
   const [activeCity, setActiveCity] = useState<string | null>(null) // null = terdekat dari posisi
   const [cityListOpen, setCityListOpen] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [fetchNonce, setFetchNonce] = useState(0) // pemicu fetch ulang manual
+  const [gpsWaitOver, setGpsWaitOver] = useState(false)
 
   // Data bengkel
   const [data, setData] = useState<Bengkel[] | null>(null)
@@ -52,8 +54,16 @@ export function BengkelView() {
     return DEFAULT_LOCATION
   }, [activeCity, userPos])
 
+  // Beri waktu GPS mendeteksi posisi maks. 7 detik sebelum memakai titik default
+  useEffect(() => {
+    const t = setTimeout(() => setGpsWaitOver(true), 7000)
+    return () => clearTimeout(t)
+  }, [])
+
   // Muat data live setiap titik acuan / radius berubah
   useEffect(() => {
+    // tunggu GPS selesai mendeteksi dulu — hindari fetch salah titik Jakarta
+    if (!activeCity && !userPos && loc.status === 'locating' && !gpsWaitOver) return
     abortRef.current?.abort()
     const ctrl = new AbortController()
     abortRef.current = ctrl
@@ -77,7 +87,7 @@ export function BengkelView() {
       })
 
     return () => ctrl.abort()
-  }, [refPoint.lat, refPoint.lng, radiusKm])
+  }, [refPoint.lat, refPoint.lng, radiusKm, loc.status, gpsWaitOver, fetchNonce, activeCity, userPos])
 
   const source: Bengkel[] = useMemo(() => {
     if (live && data) return data
@@ -189,8 +199,9 @@ export function BengkelView() {
             abortRef.current = null
             setData(null)
             setLoading(true)
-            // picu fetch ulang dengan mengganti state melalui refresh lokasi
+            // picu deteksi ulang GPS + fetch ulang data bengkel
             loc.refresh()
+            setFetchNonce((n) => n + 1)
           }}
           aria-label="Muat ulang data bengkel"
           className="text-zinc-300 active:scale-90"
@@ -368,6 +379,7 @@ export function BengkelView() {
             selectedId={selectedId}
             onSelect={(id) => setSelectedId((prev) => (prev === id ? null : id))}
             userPos={userPos && isInJava(userPos.lat, userPos.lng) ? userPos : null}
+            accuracy={loc.accuracy}
             className="h-[380px] w-full"
           />
           {selected && (

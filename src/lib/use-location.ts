@@ -13,12 +13,18 @@ export type LocationStatus =
 
 const CACHE_KEY = 'rc-last-pos'
 
+/** Cache lebih tua dari ini dianggap kedaluwarsa — posisi terlalu lama = tidak akurat */
+const CACHE_TTL_MS = 6 * 60 * 60 * 1000 // 6 jam
+
 interface CachedPos extends LatLng {
   ts: number
 }
 
-/** Posisi terakhir yang tersimpan (persist antar kunjungan). null bila belum pernah ada. */
-export function readCachedPosition(): CachedPos | null {
+/**
+ * Posisi terakhir yang tersimpan (persist antar kunjungan).
+ * null bila belum pernah ada ATAU sudah kedaluwarsa (default 6 jam).
+ */
+export function readCachedPosition(maxAgeMs: number = CACHE_TTL_MS): CachedPos | null {
   if (typeof window === 'undefined') return null
   try {
     const raw = localStorage.getItem(CACHE_KEY)
@@ -30,6 +36,8 @@ export function readCachedPosition(): CachedPos | null {
       Math.abs(p.lat) <= 90 &&
       Math.abs(p.lng) <= 180
     ) {
+      // cache tanpa timestamp atau terlalu lama tidak dipakai lagi
+      if (typeof p.ts !== 'number' || Date.now() - p.ts > maxAgeMs) return null
       return p
     }
     return null
@@ -73,6 +81,7 @@ export function useLocation(): UseLocationResult {
   const [error, setError] = useState<string | null>(null)
   const [cache, setCache] = useState<LatLng | null>(null)
   const attemptRef = useRef(0)
+  const lowAccRef = useRef(false)
 
   const request = useCallback(() => {
     attemptRef.current += 1
@@ -83,24 +92,38 @@ export function useLocation(): UseLocationResult {
     }
     setStatus((s) => (s === 'granted' ? s : 'locating'))
     setError(null)
+    const onSuccess = (p: GeolocationPosition) => {
+      const next = { lat: p.coords.latitude, lng: p.coords.longitude }
+      if (!Number.isFinite(next.lat) || !Number.isFinite(next.lng)) return
+      setLivePos(next)
+      setAccuracy(p.coords.accuracy ?? null)
+      setStatus('granted')
+      setError(null)
+      cachePosition(next)
+    }
+    const onFail = (err: GeolocationPositionError) => {
+      if (err.code === err.PERMISSION_DENIED) {
+        setStatus('denied')
+        setError('Izin lokasi belum diberikan — aktifkan akses lokasi di browser')
+        return
+      }
+      // GPS presisi tinggi timeout -> coba sekali lagi via lokasi jaringan (coarse)
+      if (err.code === err.TIMEOUT && !lowAccRef.current) {
+        lowAccRef.current = true
+        navigator.geolocation.getCurrentPosition(onSuccess, onFail, {
+          enableHighAccuracy: false,
+          timeout: 10000,
+          maximumAge: 30000,
+        })
+        return
+      }
+      setStatus('unavailable')
+      setError('GPS tidak tersedia saat ini — coba lagi di area terbuka')
+    }
+    lowAccRef.current = false
     navigator.geolocation.getCurrentPosition(
-      (p) => {
-        const next = { lat: p.coords.latitude, lng: p.coords.longitude }
-        setLivePos(next)
-        setAccuracy(p.coords.accuracy ?? null)
-        setStatus('granted')
-        setError(null)
-        cachePosition(next)
-      },
-      (err) => {
-        if (err.code === err.PERMISSION_DENIED) {
-          setStatus('denied')
-          setError('Izin lokasi belum diberikan — aktifkan akses lokasi di browser')
-        } else {
-          setStatus('unavailable')
-          setError('GPS tidak tersedia saat ini — coba lagi di area terbuka')
-        }
-      },
+      onSuccess,
+      onFail,
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 15000 }
     )
   }, [])

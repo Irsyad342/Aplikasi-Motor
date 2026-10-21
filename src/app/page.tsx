@@ -55,8 +55,8 @@ interface SimState {
 function makeSimRoute(center: LatLng): [number, number][] {
   const route: [number, number][] = []
   const points = 16
-  // radius bervariasi 0.6–1.4 km agar loop terlihat organik
-  const radii = [1.2, 1.35, 1.1, 0.9, 0.75, 0.85, 1.0, 1.25, 1.4, 1.2, 0.95, 0.8, 0.7, 0.9, 1.1, 1.3]
+  // radius kecil 0,28–0,5 km: loop kota realistis & lompatan awal pendek
+  const radii = [0.42, 0.48, 0.4, 0.34, 0.3, 0.32, 0.38, 0.46, 0.5, 0.42, 0.36, 0.3, 0.28, 0.34, 0.4, 0.46]
   for (let i = 0; i < points; i++) {
     const ang = (i / points) * Math.PI * 2
     const radKm = radii[i]
@@ -124,12 +124,17 @@ export default function Home() {
   const simRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const simStateRef = useRef<SimState | null>(null)
   const simRouteRef = useRef<[number, number][]>([])
+  const simPrevRef = useRef<LatLng | null>(null) // posisi rute sim terakhir (jarak diukur antar titik rute, bukan lompatan awal)
   const pathRef = useRef<[number, number][]>([])
   const headingRef = useRef(0)
   const [livePath, setLivePath] = useState<[number, number][]>([])
   const [currentPos, setCurrentPos] = useState<[number, number] | null>(null)
   const [heading, setHeading] = useState(0)
   const [, setTick] = useState(0)
+  // Sumber posisi saat tracking: 'waiting' = mencari GPS, 'gps' = fix asli, 'sim' = simulasi
+  const [locMode, setLocMode] = useState<'waiting' | 'gps' | 'sim'>('waiting')
+  const gpsModeRef = useRef<'waiting' | 'gps' | 'sim'>('waiting')
+  const pendingSimRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // ---------- Data ----------
   const loadState = useCallback(async (id?: string) => {
@@ -174,78 +179,12 @@ export default function Home() {
   const vehicle = state?.vehicle ?? null
 
   // ---------- Tracking ----------
-  const startTracking = useCallback(() => {
-    lastPosRef.current = null
-    pathRef.current = []
-    headingRef.current = 0
-    simStateRef.current = { seg: 0, frac: 0, speed: 24 }
-    // Simulasi berputar di sekitar posisi GPS pengguna sekarang
-    const base = loc.pos ?? DEFAULT_LOCATION
-    simRouteRef.current = makeSimRoute(base)
-    // Jika posisi GPS tersedia, mulai dari posisi asli
-    if (loc.pos) {
-      pathRef.current = [[base.lat, base.lng]]
-      setLivePath(pathRef.current)
-      setCurrentPos([base.lat, base.lng])
+  const clearSimPending = useCallback(() => {
+    if (pendingSimRef.current) {
+      clearTimeout(pendingSimRef.current)
+      pendingSimRef.current = null
     }
-    setTracking({ startedAt: Date.now(), distance: 0, geoFixes: 0 })
-
-    // Mode GPS nyata: rekam posisi asli pengguna
-    if (typeof navigator !== 'undefined' && navigator.geolocation) {
-      watchRef.current = navigator.geolocation.watchPosition(
-        (pos) => {
-          const cur = { lat: pos.coords.latitude, lng: pos.coords.longitude }
-          const last = lastPosRef.current
-          lastPosRef.current = cur
-          setCurrentPos([cur.lat, cur.lng])
-          if (last) {
-            const d = haversineKm(last, cur)
-            if (d > 0.003 && d < 1) {
-              headingRef.current = bearingDeg(last, cur)
-              setHeading(headingRef.current)
-              pathRef.current = [...pathRef.current, [cur.lat, cur.lng] as [number, number]]
-              setLivePath(pathRef.current)
-              setTracking((prev) =>
-                prev
-                  ? { ...prev, distance: prev.distance + d, geoFixes: prev.geoFixes + 1 }
-                  : prev
-              )
-            }
-          } else {
-            pathRef.current = [[cur.lat, cur.lng]]
-            setLivePath(pathRef.current)
-          }
-        },
-        () => {
-          /* akses GPS ditolak -> jalur simulasi */
-        },
-        { enableHighAccuracy: true, maximumAge: 2000, timeout: 8000 }
-      )
-    }
-
-    // Mode simulasi: motor bergerak di sekitar posisi pengguna bila GPS tidak tersedia
-    simRef.current = setInterval(() => {
-      const sp = simStateRef.current
-      if (!sp || lastPosRef.current) return // GPS aktif -> hentikan simulasi
-      sp.speed = Math.min(38, Math.max(16, sp.speed + (Math.random() - 0.5) * 6))
-      const stepKm = sp.speed / 3600
-      const cur = advanceSim(simRouteRef.current, sp, stepKm)
-      const prev = pathRef.current[pathRef.current.length - 1]
-      const d = prev ? haversineKm({ lat: prev[0], lng: prev[1] }, cur) : stepKm
-      if (d > 0.0005) {
-        if (prev) {
-          headingRef.current = bearingDeg({ lat: prev[0], lng: prev[1] }, cur)
-          setHeading(headingRef.current)
-        }
-        pathRef.current = [...pathRef.current, [cur.lat, cur.lng] as [number, number]]
-        setLivePath(pathRef.current)
-        setTracking((p) => (p ? { ...p, distance: p.distance + d } : p))
-      }
-      setCurrentPos([cur.lat, cur.lng])
-    }, 1000)
-
-    toast.success('Perekaman perjalanan dimulai')
-  }, [loc.pos])
+  }, [])
 
   const stopTrackingSensors = useCallback(() => {
     if (watchRef.current !== null && typeof navigator !== 'undefined' && navigator.geolocation) {
@@ -256,11 +195,136 @@ export default function Home() {
       clearInterval(simRef.current)
       simRef.current = null
     }
+    clearSimPending()
+  }, [clearSimPending])
+
+  // Mode simulasi: motor bergerak di rute loop di sekitar posisi pengguna.
+  // HANYA dijalankan bila GPS terbukti tidak tersedia — jangan pernah dicampur
+  // dengan data GPS nyata (jarak & rute direset saat fix GPS pertama masuk).
+  const startSimEngine = useCallback(() => {
+    if (simRef.current) return
+    gpsModeRef.current = 'sim'
+    setLocMode('sim')
+    simRef.current = setInterval(() => {
+      const sp = simStateRef.current
+      if (!sp || lastPosRef.current) return // GPS aktif -> hentikan simulasi
+      sp.speed = Math.min(38, Math.max(16, sp.speed + (Math.random() - 0.5) * 6))
+      const stepKm = sp.speed / 3600
+      const cur = advanceSim(simRouteRef.current, sp, stepKm)
+      // jarak HANYA dihitung antar titik rute simulasi — lompatan awal
+      // dari posisi asli ke titik mulai rute TIDAK dihitung sebagai tempuh
+      const prevSim = simPrevRef.current
+      simPrevRef.current = cur
+      const d = prevSim ? haversineKm(prevSim, cur) : 0
+      if (d > 0.0005) {
+        const prev = pathRef.current[pathRef.current.length - 1]
+        if (prev) {
+          headingRef.current = bearingDeg({ lat: prev[0], lng: prev[1] }, cur)
+          setHeading(headingRef.current)
+        }
+        pathRef.current = [...pathRef.current, [cur.lat, cur.lng] as [number, number]]
+        setLivePath(pathRef.current)
+        setTracking((p) => (p ? { ...p, distance: p.distance + d } : p))
+      }
+      setCurrentPos([cur.lat, cur.lng])
+    }, 1000)
   }, [])
+
+  const startTracking = useCallback(() => {
+    stopTrackingSensors()
+    lastPosRef.current = null
+    pathRef.current = []
+    headingRef.current = 0
+    simPrevRef.current = null
+    simStateRef.current = { seg: 0, frac: 0, speed: 24 }
+    gpsModeRef.current = 'waiting'
+    setLocMode('waiting')
+    // Simulasi berputar di sekitar posisi GPS pengguna sekarang
+    const base = loc.pos ?? DEFAULT_LOCATION
+    simRouteRef.current = makeSimRoute(base)
+    // Jika posisi GPS tersedia, mulai dari posisi asli
+    if (loc.pos) {
+      pathRef.current = [[base.lat, base.lng]]
+      setLivePath(pathRef.current)
+      setCurrentPos([base.lat, base.lng])
+    } else {
+      setLivePath([])
+      setCurrentPos(null)
+    }
+    setTracking({ startedAt: Date.now(), distance: 0, geoFixes: 0 })
+
+    // Mode GPS nyata: rekam posisi asli pengguna
+    if (typeof navigator !== 'undefined' && navigator.geolocation) {
+      watchRef.current = navigator.geolocation.watchPosition(
+        (pos) => {
+          const cur = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+          if (!Number.isFinite(cur.lat) || !Number.isFinite(cur.lng)) return
+          // Fix GPS pertama: buang SELURUH data simulasi, mulai hitungan bersih
+          if (lastPosRef.current === null) {
+            gpsModeRef.current = 'gps'
+            setLocMode('gps')
+            clearSimPending()
+            if (simRef.current) {
+              clearInterval(simRef.current)
+              simRef.current = null
+            }
+            pathRef.current = [[cur.lat, cur.lng]]
+            setLivePath(pathRef.current)
+            setCurrentPos([cur.lat, cur.lng])
+            lastPosRef.current = cur
+            setTracking((prev) =>
+              prev ? { ...prev, distance: 0, geoFixes: 1 } : prev
+            )
+            return
+          }
+          const last = lastPosRef.current
+          lastPosRef.current = cur
+          setCurrentPos([cur.lat, cur.lng])
+          const acc = typeof pos.coords.accuracy === 'number' ? pos.coords.accuracy : 0
+          const d = haversineKm(last, cur)
+          // Fix tidak presisi (>100 m) atau lompatan jauh (>1 km):
+          // posisi marker diperbarui, tapi TIDAK dihitung sebagai jarak/rute
+          if (acc > 100 || d >= 1) return
+          if (d > 0.003) {
+            headingRef.current = bearingDeg(last, cur)
+            setHeading(headingRef.current)
+            if (pathRef.current.length < 2500) {
+              pathRef.current = [...pathRef.current, [cur.lat, cur.lng] as [number, number]]
+              setLivePath(pathRef.current)
+            }
+            setTracking((prev) =>
+              prev
+                ? { ...prev, distance: prev.distance + d, geoFixes: prev.geoFixes + 1 }
+                : prev
+            )
+          }
+        },
+        (err) => {
+          if (err.code === err.PERMISSION_DENIED || err.code === err.POSITION_UNAVAILABLE) {
+            clearSimPending()
+            startSimEngine()
+            toast.info('GPS tidak tersedia — mode simulasi diaktifkan')
+          }
+          // TIME_OUT: watchPosition tetap berjalan menunggu fix berikutnya
+        },
+        { enableHighAccuracy: true, maximumAge: 2000, timeout: 8000 }
+      )
+    }
+
+    // GPS tidak kunjung fix dalam 15 detik -> fallback ke simulasi
+    pendingSimRef.current = setTimeout(() => {
+      pendingSimRef.current = null
+      if (gpsModeRef.current === 'waiting') startSimEngine()
+    }, 15000)
+
+    toast.success('Perekaman perjalanan dimulai')
+  }, [loc.pos, stopTrackingSensors, startSimEngine, clearSimPending])
 
   const finishTracking = useCallback(async () => {
     if (!tracking || !vehicle) return
     stopTrackingSensors()
+    gpsModeRef.current = 'waiting'
+    setLocMode('waiting')
     const duration = Math.max(1, Math.round((Date.now() - tracking.startedAt) / 1000))
     const distance = Math.round(tracking.distance * 100) / 100
     const pathJson =
@@ -506,6 +570,7 @@ export default function Home() {
               path={livePath}
               currentPos={currentPos}
               heading={heading}
+              locMode={locMode}
               locStatus={loc.status}
               locError={loc.error}
               onRetryLocation={loc.refresh}

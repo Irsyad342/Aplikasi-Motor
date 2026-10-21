@@ -37,6 +37,7 @@ export function TripsView({
   path,
   currentPos,
   heading,
+  locMode,
   locStatus,
   locError,
   onRetryLocation,
@@ -52,6 +53,8 @@ export function TripsView({
   path: [number, number][]
   currentPos: [number, number] | null
   heading: number
+  /** 'waiting' = mencari GPS, 'gps' = fix asli, 'sim' = fallback simulasi */
+  locMode: 'waiting' | 'gps' | 'sim'
   locStatus: LocationStatus
   locError: string | null
   onRetryLocation: () => void
@@ -61,7 +64,15 @@ export function TripsView({
     tracking && elapsed > 5 ? tracking.distance / (elapsed / 3600) : 0
 
   const list = useMemo(() => state.trips, [state.trips])
-  const simMode = !!tracking && tracking.geoFixes === 0
+  const simMode = locMode === 'sim'
+  const modeLabel =
+    locMode === 'gps' ? 'GPS AKTIF' : locMode === 'sim' ? 'MODE SIMULASI' : 'MENCARI GPS…'
+  const modeColor =
+    locMode === 'gps'
+      ? { text: 'text-green-600', ping: 'bg-green-400', dot: 'bg-green-500' }
+      : locMode === 'sim'
+        ? { text: 'text-amber-600', ping: 'bg-amber-400', dot: 'bg-amber-500' }
+        : { text: 'text-sky-600', ping: 'bg-sky-400', dot: 'bg-sky-500' }
 
   return (
     <div className="pb-6">
@@ -164,12 +175,15 @@ export function TripsView({
 
           {/* Statistik live */}
           <div className="mt-3 rounded-3xl bg-white p-5 text-center shadow-sm ring-1 ring-green-100">
-            <div className="flex items-center justify-center gap-2 text-xs font-semibold text-green-600">
+            <div className={cn(
+              'flex items-center justify-center gap-2 text-xs font-semibold',
+              modeColor.text
+            )}>
               <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
+                <span className={cn('absolute inline-flex h-full w-full animate-ping rounded-full opacity-75', modeColor.ping)} />
+                <span className={cn('relative inline-flex h-2 w-2 rounded-full', modeColor.dot)} />
               </span>
-              {simMode ? 'MODE SIMULASI' : 'GPS AKTIF'}
+              {modeLabel}
             </div>
             <p className="mt-2 text-5xl font-bold tracking-tight text-zinc-900 tabular-nums">
               {formatKm1(tracking.distance)}
