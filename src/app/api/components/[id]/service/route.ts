@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { rateLimit } from '@/lib/rate-limit'
+import { sessionUserId } from '@/lib/guard'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -17,7 +18,13 @@ export async function POST(req: NextRequest, { params }: Params) {
     const { id } = await params
     const body = await req.json()
 
-    const component = await db.component.findUnique({ where: { id } })
+    const userId = await sessionUserId()
+    if (!userId) {
+      return NextResponse.json({ error: 'Belum login' }, { status: 401 })
+    }
+    const component = await db.component.findFirst({
+      where: { id, vehicle: { userId } },
+    })
     if (!component) {
       return NextResponse.json({ error: 'Komponen tidak ditemukan' }, { status: 404 })
     }

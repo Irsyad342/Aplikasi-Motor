@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getCatalog } from '@/lib/catalog'
 import { rateLimit } from '@/lib/rate-limit'
+import { sessionUserId } from '@/lib/guard'
 
 export async function POST(req: NextRequest) {
   const rl = rateLimit(req, 'write', 'vehicles')
@@ -12,6 +13,10 @@ export async function POST(req: NextRequest) {
     )
   }
   try {
+    const userId = await sessionUserId()
+    if (!userId) {
+      return NextResponse.json({ error: 'Belum login' }, { status: 401 })
+    }
     const body = await req.json()
     const name = String(body.name ?? '').trim().slice(0, 60)
     const type = body.type === 'mobil' ? 'mobil' : 'motor'
@@ -25,7 +30,7 @@ export async function POST(req: NextRequest) {
     const imageKey = type === 'mobil' ? 'car-gray' : 'motor-green'
 
     const vehicle = await db.vehicle.create({
-      data: { name, type, odometer, imageKey, plate },
+      data: { name, type, odometer, imageKey, plate, userId },
     })
 
     // Pasang seluruh katalog komponen dengan baseline di odometer saat ini

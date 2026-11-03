@@ -53,6 +53,8 @@ export interface RideViewProps {
   locMode: 'waiting' | 'gps'
   locStatus: string
   locError: string | null
+  /** Detik sejak mulai rekam tanpa fix GPS — untuk umpan balik "Coba Lagi" */
+  locWaitSec: number
   onRetryLocation: () => void
   onAddManual: () => void
   onAddExpense: () => void
@@ -90,6 +92,7 @@ export function RideView(props: RideViewProps) {
     locMode,
     locStatus,
     locError,
+    locWaitSec,
     onRetryLocation,
     onAddManual,
     onAddExpense,
@@ -264,7 +267,12 @@ export function RideView(props: RideViewProps) {
                   Nyalakan GPS &amp; pastikan berada di luar ruangan agar jarak tercatat akurat
                 </p>
                 {locError && <p className="text-[11px] font-semibold text-warn">{locError}</p>}
-                {(locStatus === 'denied' || locStatus === 'unavailable') && (
+                {locWaitSec >= 12 && locStatus !== 'denied' && locStatus !== 'unavailable' && (
+                  <p className="text-[11px] font-semibold text-warn">
+                    GPS belum terdeteksi — pastikan kamu di luar ruangan, lalu coba lagi
+                  </p>
+                )}
+                {(locStatus === 'denied' || locStatus === 'unavailable' || locWaitSec >= 12) && (
                   <Btn variant="outline" size="sm" className={outlineOnHero} onClick={onRetryLocation}>
                     <RefreshCw size={14} /> Coba Lagi
                   </Btn>

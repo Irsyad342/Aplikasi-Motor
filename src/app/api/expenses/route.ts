@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { rateLimit } from '@/lib/rate-limit'
+import { ownedVehicle, sessionUserId } from '@/lib/guard'
 
 const CATEGORIES = ['bensin', 'parkir', 'servis', 'lainnya']
 
@@ -14,9 +15,16 @@ export async function GET(req: NextRequest) {
     )
   }
   try {
+    const userId = await sessionUserId()
+    if (!userId) {
+      return NextResponse.json({ error: 'Belum login' }, { status: 401 })
+    }
     const vehicleId = req.nextUrl.searchParams.get('vehicleId')
     const expenses = await db.expense.findMany({
-      where: vehicleId ? { vehicleId } : undefined,
+      where: {
+        vehicle: { userId },
+        ...(vehicleId ? { vehicleId } : {}),
+      },
       orderBy: { date: 'desc' },
       take: 100,
     })
@@ -42,7 +50,11 @@ export async function POST(req: NextRequest) {
     if (!vehicleId) {
       return NextResponse.json({ error: 'vehicleId wajib diisi' }, { status: 400 })
     }
-    const vehicle = await db.vehicle.findUnique({ where: { id: vehicleId } })
+    const userId = await sessionUserId()
+    if (!userId) {
+      return NextResponse.json({ error: 'Belum login' }, { status: 401 })
+    }
+    const vehicle = await ownedVehicle(vehicleId, userId)
     if (!vehicle) {
       return NextResponse.json({ error: 'Kendaraan tidak ditemukan' }, { status: 404 })
     }

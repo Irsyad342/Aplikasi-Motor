@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { rateLimit } from '@/lib/rate-limit'
+import { sessionUserId } from '@/lib/guard'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -32,6 +33,17 @@ async function resyncBaseline(componentId: string) {
   }
 }
 
+/** Muat catatan servis milik akun yang login (via kendaraan). */
+async function loadOwnedRecord(id: string) {
+  const userId = await sessionUserId()
+  if (!userId) return { error: 'Belum login', status: 401 as const }
+  const record = await db.serviceRecord.findFirst({
+    where: { id, vehicle: { userId } },
+  })
+  if (!record) return { error: 'Catatan tidak ditemukan', status: 404 as const }
+  return { record }
+}
+
 // Edit catatan servis — jenis, odometer, tanggal, biaya, bengkel, catatan
 export async function PATCH(req: NextRequest, { params }: Params) {
   const rl = rateLimit(req, 'write', 'components')
@@ -45,10 +57,11 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const { id } = await params
     const body = await req.json()
 
-    const record = await db.serviceRecord.findUnique({ where: { id } })
-    if (!record) {
-      return NextResponse.json({ error: 'Catatan tidak ditemukan' }, { status: 404 })
+    const loaded = await loadOwnedRecord(id)
+    if ('error' in loaded) {
+      return NextResponse.json({ error: loaded.error }, { status: loaded.status })
     }
+    const record = loaded.record
 
     const data: Record<string, unknown> = {}
 
@@ -114,10 +127,11 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   }
   try {
     const { id } = await params
-    const record = await db.serviceRecord.findUnique({ where: { id } })
-    if (!record) {
-      return NextResponse.json({ error: 'Catatan tidak ditemukan' }, { status: 404 })
+    const loaded = await loadOwnedRecord(id)
+    if ('error' in loaded) {
+      return NextResponse.json({ error: loaded.error }, { status: loaded.status })
     }
+    const record = loaded.record
 
     await db.serviceRecord.delete({ where: { id } })
     await resyncBaseline(record.componentId)

@@ -35,6 +35,7 @@ export interface MaintenanceViewProps {
   onToggleSelect: (c: ComponentDTO) => void
   onToggleSelectMode: () => void
   onMarkSelected: () => void
+  onUninstallSelected: () => void
 }
 
 type InstalledComponent = ComponentDTO & { health: NonNullable<ComponentDTO['health']> }
@@ -172,7 +173,7 @@ export function MaintenanceView({
         </Btn>
         {selectMode && (
           <p className="mt-2 text-center text-[11px] text-muted-foreground">
-            Pilih komponen lalu tandai sudah diganti
+            Pilih komponen lalu tandai diganti atau lepas dari motor
           </p>
         )}
       </motion.div>

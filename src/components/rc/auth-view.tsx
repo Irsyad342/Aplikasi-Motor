@@ -4,12 +4,14 @@
  * AuthView — layar masuk & daftar akun MotoMate.
  * Desain mengikuti referensi: badge ikon lime, judul besar, tombol CTA lime,
  * tombol sekunder gelap, input bersih dengan sudut membulat.
+ * Pengguna baru disambut slide perkenalan + preferensi sebelum form login.
  */
 
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { motion } from 'framer-motion'
 import { Eye, EyeOff, Loader2, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { IntroView } from '@/components/rc/intro-view'
 
 export interface AuthUser {
   id: string
@@ -19,16 +21,24 @@ export interface AuthUser {
 
 type Mode = 'login' | 'register'
 
+const INTRO_KEY = 'mm-intro'
+
 const inputCls =
   'min-h-12 w-full rounded-2xl border border-input bg-card px-4 text-[15px] font-semibold text-foreground placeholder:font-medium placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-50'
 
 export function AuthView({ onAuthed }: { onAuthed: (user: AuthUser) => void }) {
+  // null = belum tahu (hindari mismatch SSR), true = tampilkan perkenalan
+  const [intro, setIntro] = useState<boolean | null>(null)
   const [mode, setMode] = useState<Mode>('login')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPw, setShowPw] = useState(false)
   const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    setIntro(localStorage.getItem(INTRO_KEY) !== '1')
+  }, [])
 
   const isLogin = mode === 'login'
 
@@ -60,6 +70,18 @@ export function AuthView({ onAuthed }: { onAuthed: (user: AuthUser) => void }) {
   function switchMode() {
     setMode(isLogin ? 'register' : 'login')
     setPassword('')
+  }
+
+  // Perkenalan aplikasi + preferensi untuk pengunjung baru
+  if (intro !== false) {
+    if (intro === null) {
+      return (
+        <div className="flex min-h-dvh items-center justify-center bg-background">
+          <span className="h-10 w-10 animate-spin rounded-full border-4 border-lime border-t-transparent" />
+        </div>
+      )
+    }
+    return <IntroView onDone={() => setIntro(false)} />
   }
 
   return (
@@ -176,6 +198,21 @@ export function AuthView({ onAuthed }: { onAuthed: (user: AuthUser) => void }) {
         <p className="mt-1 text-center text-[11px] font-semibold text-muted-foreground/70">
           MotoMate · Pelacak perawatan motor
         </p>
+
+        <button
+          type="button"
+          onClick={() => {
+            try {
+              localStorage.removeItem(INTRO_KEY)
+            } catch {
+              /* abaikan */
+            }
+            setIntro(true)
+          }}
+          className="mx-auto mt-3 block rounded-full px-3 py-1.5 text-[11px] font-bold text-muted-foreground/70 transition-colors hover:text-foreground"
+        >
+          Lihat perkenalan aplikasi
+        </button>
       </motion.div>
     </div>
   )

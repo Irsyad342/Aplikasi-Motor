@@ -83,8 +83,17 @@ export interface AppState {
   catalogKeys: string[]
 }
 
-export async function buildState(vehicleId?: string | null): Promise<AppState> {
+/**
+ * Susun seluruh state aplikasi untuk SATU akun.
+ * Setiap akun hanya melihat kendaraan miliknya sendiri — akun baru
+ * otomatis mulai tanpa data (tanpa data demo).
+ */
+export async function buildState(
+  userId: string,
+  vehicleId?: string | null
+): Promise<AppState> {
   const vehicles = await db.vehicle.findMany({
+    where: { userId },
     orderBy: { createdAt: 'asc' },
     select: {
       id: true, name: true, type: true, plate: true, odometer: true, imageKey: true,

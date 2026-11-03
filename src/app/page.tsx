@@ -12,6 +12,7 @@ import {
   Fuel,
   Plus,
   Search,
+  Unlink,
   Wrench,
   X,
 } from 'lucide-react'
@@ -24,6 +25,7 @@ import { BottomNav, type View } from '@/components/rc/nav'
 import {
   Btn,
   Card,
+  ConfirmSheet,
   Field,
   IconBtn,
   Pill,
@@ -42,6 +44,7 @@ import { MaintenanceView } from '@/components/rc/maintenance-view'
 import { VehicleView } from '@/components/rc/vehicle-view'
 import { HistoryView } from '@/components/rc/history-view'
 import { SettingsView } from '@/components/rc/settings-view'
+import { WelcomeView } from '@/components/rc/welcome-view'
 import { ComponentDetail } from '@/components/ridecheck/component-detail'
 import { BengkelView } from '@/components/ridecheck/bengkel-view'
 import { SearchOverlay } from '@/components/ridecheck/search-overlay'
@@ -131,9 +134,13 @@ export default function Home() {
   const [serviceOpen, setServiceOpen] = useState<{ open: boolean; componentId: string | null }>({ open: false, componentId: null })
   const [tripOpen, setTripOpen] = useState(false)
   const [expenseOpen, setExpenseOpen] = useState(false)
+  // Popup peringatan
+  const [confirmLepas, setConfirmLepas] = useState(false)
+  const [confirmReset, setConfirmReset] = useState(false)
 
   // Lokasi GPS asli (jangan fallback diam-diam ke Jakarta)
   const loc = useLocation()
+  const { pos: locPos, status: locStatusRaw, refresh: locRefresh } = loc
 
   // Select mode (perawatan)
   const [selectMode, setSelectMode] = useState(false)
@@ -149,11 +156,15 @@ export default function Home() {
   const lastPosRef = useRef<LatLng | null>(null)
   const pathRef = useRef<[number, number][]>([])
   const headingRef = useRef(0)
+  // true bila watch sudah diturunkan ke akurasi jaringan (fallback GPS presisi)
+  const watchLowAccRef = useRef(false)
   const [livePath, setLivePath] = useState<[number, number][]>([])
   const [currentPos, setCurrentPos] = useState<[number, number] | null>(null)
   const [heading, setHeading] = useState(0)
   const [, setTick] = useState(0)
   const [locMode, setLocMode] = useState<'waiting' | 'gps'>('waiting')
+  // Detak detik sejak mulai rekam tanpa fix GPS (umpan balik "Coba Lagi")
+  const [gpsWaitSec, setGpsWaitSec] = useState(0)
 
   // ---------- Data ----------
   const loadState = useCallback(async (id?: string) => {
@@ -254,6 +265,17 @@ export default function Home() {
     return () => clearInterval(i)
   }, [tracking?.startedAt, tracking])
 
+  // Hitung detik menunggu fix GPS — untuk umpan balik "Coba Lagi" di kartu rekam
+  useEffect(() => {
+    if (!tracking || locMode === 'gps') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset timer saat tracking selesai/GPS fix (sinkronisasi state internal)
+      setGpsWaitSec(0)
+      return
+    }
+    const i = window.setInterval(() => setGpsWaitSec((s) => s + 1), 1000)
+    return () => window.clearInterval(i)
+  }, [tracking, locMode])
+
   // Reset scroll saat pindah halaman
   useEffect(() => {
     window.scrollTo({ top: 0 })
@@ -283,70 +305,92 @@ export default function Home() {
       toast.error('Perangkat tidak mendukung GPS — nyalakan layanan lokasi dulu')
       return
     }
-    if (loc.status === 'denied') {
-      toast.error('Izin lokasi belum diberikan — nyalakan GPS dulu untuk merekam perjalanan')
-      return
+    // Izin bisa berubah di tengah jalan (sebelumnya ditolak, lalu diaktifkan).
+    // Selalu coba ulang deteksi — JANGAN macet karena status lama.
+    if (locStatusRaw === 'denied' || locStatusRaw === 'unavailable') {
+      locRefresh()
     }
     stopTrackingSensors()
     lastPosRef.current = null
     pathRef.current = []
     headingRef.current = 0
+    watchLowAccRef.current = false
+    setGpsWaitSec(0)
     setLocMode('waiting')
-    if (loc.pos) {
-      pathRef.current = [[loc.pos.lat, loc.pos.lng]]
+    if (locPos) {
+      pathRef.current = [[locPos.lat, locPos.lng]]
       setLivePath(pathRef.current)
-      setCurrentPos([loc.pos.lat, loc.pos.lng])
+      setCurrentPos([locPos.lat, locPos.lng])
     } else {
       setLivePath([])
       setCurrentPos(null)
     }
     setTracking({ startedAt: Date.now(), distance: 0, geoFixes: 0 })
 
-    watchRef.current = navigator.geolocation.watchPosition(
-      (pos) => {
-        const cur = { lat: pos.coords.latitude, lng: pos.coords.longitude }
-        if (!Number.isFinite(cur.lat) || !Number.isFinite(cur.lng)) return
-        if (lastPosRef.current === null) {
-          setLocMode('gps')
-          pathRef.current = [[cur.lat, cur.lng]]
-          setLivePath(pathRef.current)
-          setCurrentPos([cur.lat, cur.lng])
-          lastPosRef.current = cur
-          setTracking((prev) => (prev ? { ...prev, distance: 0, geoFixes: 1 } : prev))
-          return
-        }
-        const last = lastPosRef.current
-        lastPosRef.current = cur
-        setCurrentPos([cur.lat, cur.lng])
-        const acc = typeof pos.coords.accuracy === 'number' ? pos.coords.accuracy : 0
-        const d = haversineKm(last, cur)
-        if (acc > 100 || d >= 1) return
-        if (d > 0.003) {
-          headingRef.current = bearingDeg(last, cur)
-          setHeading(headingRef.current)
-          if (pathRef.current.length < 2500) {
-            pathRef.current = [...pathRef.current, [cur.lat, cur.lng] as [number, number]]
+    /** Mulai watch GPS — bisa dipanggil ulang dengan akurasi rendah saat sinyal sulit. */
+    const watch = (highAccuracy: boolean) => {
+      stopTrackingSensors()
+      watchRef.current = navigator.geolocation!.watchPosition(
+        (pos) => {
+          const cur = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+          if (!Number.isFinite(cur.lat) || !Number.isFinite(cur.lng)) return
+          if (lastPosRef.current === null) {
+            setLocMode('gps')
+            setGpsWaitSec(0)
+            pathRef.current = [[cur.lat, cur.lng]]
             setLivePath(pathRef.current)
+            setCurrentPos([cur.lat, cur.lng])
+            lastPosRef.current = cur
+            setTracking((prev) => (prev ? { ...prev, distance: 0, geoFixes: 1 } : prev))
+            return
           }
-          setTracking((prev) =>
-            prev ? { ...prev, distance: prev.distance + d, geoFixes: prev.geoFixes + 1 } : prev
-          )
+          const last = lastPosRef.current
+          lastPosRef.current = cur
+          setCurrentPos([cur.lat, cur.lng])
+          const acc = typeof pos.coords.accuracy === 'number' ? pos.coords.accuracy : 0
+          const d = haversineKm(last, cur)
+          if (acc > 100 || d >= 1) return
+          if (d > 0.003) {
+            headingRef.current = bearingDeg(last, cur)
+            setHeading(headingRef.current)
+            if (pathRef.current.length < 2500) {
+              pathRef.current = [...pathRef.current, [cur.lat, cur.lng] as [number, number]]
+              setLivePath(pathRef.current)
+            }
+            setTracking((prev) =>
+              prev ? { ...prev, distance: prev.distance + d, geoFixes: prev.geoFixes + 1 } : prev
+            )
+          }
+        },
+        (err) => {
+          // Izin dicabut di tengah rekam → hentikan dengan pesan jelas.
+          if (err.code === err.PERMISSION_DENIED) {
+            stopTrackingSensors()
+            abortTrackingUi()
+            toast.error('Akses lokasi ditolak — izinkan lokasi untuk MotoMate di pengaturan browser', {
+              duration: 6000,
+            })
+            return
+          }
+          // GPS presisi tinggi sulit (indoor / sinyal lemah) → sekali saja
+          // coba ulang lewat lokasi jaringan (menara seluler / Wi-Fi).
+          if (!watchLowAccRef.current) {
+            watchLowAccRef.current = true
+            toast('GPS presisi sulit didapat — mencari lewat jaringan…')
+            watch(false)
+          }
+        },
+        {
+          enableHighAccuracy: highAccuracy,
+          maximumAge: highAccuracy ? 2000 : 5000,
+          timeout: highAccuracy ? 8000 : 20000,
         }
-      },
-      (err) => {
-        // Izin dicabut di tengah rekam → hentikan. Error lain (GPS hilang sesaat)
-        // tidak menghentikan watch — biarkan mencari sinyal lagi.
-        if (err.code === err.PERMISSION_DENIED) {
-          stopTrackingSensors()
-          abortTrackingUi()
-          toast.error('Akses lokasi dimatikan — rekaman dihentikan')
-        }
-      },
-      { enableHighAccuracy: true, maximumAge: 2000, timeout: 8000 }
-    )
+      )
+    }
+    watch(true)
 
     toast.success('Mencari sinyal GPS — perekaman dimulai')
-  }, [loc.pos, loc.status, stopTrackingSensors, abortTrackingUi])
+  }, [locPos, locStatusRaw, locRefresh, stopTrackingSensors, abortTrackingUi])
 
   const finishTracking = useCallback(async () => {
     if (!tracking || !vehicle) return
@@ -636,12 +680,22 @@ export default function Home() {
   )
 
   const resetData = useCallback(async () => {
-    await api('/api/reset', 'POST')
+    try {
+      await api('/api/reset', 'POST')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Gagal mengatur ulang data')
+      return
+    }
+    try {
+      localStorage.removeItem(STATE_CACHE_KEY)
+    } catch {
+      /* abaikan */
+    }
     setSettingsOpen(false)
     setOpenDetailId(null)
     setView('home')
     await loadState()
-    toast.success('Data demo diatur ulang')
+    toast.success('Semua data berhasil dihapus — mulai dari awal')
   }, [loadState])
 
   const markSelectedGanti = useCallback(async () => {
@@ -658,6 +712,21 @@ export default function Home() {
       toast.success(`${ids.length} komponen ditandai sudah diganti`)
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Gagal menyimpan')
+    }
+    setSelectedIds(new Set())
+    setSelectMode(false)
+    await loadState(vehicle.id)
+  }, [selectedIds, vehicle, loadState])
+
+  // Lepas komponen terpilih dari kendaraan — pindah ke katalog, bisa dipasang lagi
+  const uninstallSelected = useCallback(async () => {
+    if (!vehicle) return
+    const ids = Array.from(selectedIds)
+    try {
+      await Promise.all(ids.map((id) => api(`/api/components/${id}`, 'DELETE')))
+      toast.success(`${ids.length} komponen dilepas — pindah ke katalog`)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Gagal melepas komponen')
     }
     setSelectedIds(new Set())
     setSelectMode(false)
@@ -749,6 +818,10 @@ export default function Home() {
   }
 
   if (!state || !vehicle) {
+    // Akun baru tanpa kendaraan — tampilkan sambutan + form kendaraan pertama
+    if (state && state.vehicles.length === 0) {
+      return <WelcomeView onCreated={(id) => loadState(id)} />
+    }
     return (
       <div className="flex min-h-dvh justify-center bg-background">
         <div className="flex h-dvh w-full max-w-[520px] flex-col items-center justify-center gap-3">
@@ -843,6 +916,7 @@ export default function Home() {
                   locMode={locMode}
                   locStatus={loc.status}
                   locError={loc.error}
+                  locWaitSec={gpsWaitSec}
                   onRetryLocation={loc.refresh}
                   onAddManual={() => setTripOpen(true)}
                   onAddExpense={() => setExpenseOpen(true)}
@@ -867,6 +941,7 @@ export default function Home() {
                     setSelectMode(!selectMode)
                   }}
                   onMarkSelected={markSelectedGanti}
+                  onUninstallSelected={() => setConfirmLepas(true)}
                 />
               )}
 
@@ -922,8 +997,15 @@ export default function Home() {
               >
                 <X size={20} />
               </IconBtn>
+              <IconBtn
+                label="Lepas komponen terpilih"
+                tone="card"
+                onClick={() => setConfirmLepas(true)}
+              >
+                <Unlink size={19} />
+              </IconBtn>
               <Btn variant="lime" className="flex-1" onClick={markSelectedGanti}>
-                <Wrench size={16} /> Tandai Sudah Diganti ({selectedIds.size})
+                <Wrench size={16} /> Tandai Diganti ({selectedIds.size})
               </Btn>
             </div>
           </div>
@@ -1056,6 +1138,28 @@ export default function Home() {
           onSubmit={addExpense}
         />
 
+        {/* Popup peringatan: lepas komponen terpilih */}
+        <ConfirmSheet
+          open={confirmLepas}
+          onClose={() => setConfirmLepas(false)}
+          onConfirm={uninstallSelected}
+          title="Lepas Komponen?"
+          desc={`Komponen terpilih (${selectedIds.size}) akan dilepas dari ${vehicle.name} dan pindah ke Katalog. Riwayat servisnya tetap tersimpan dan komponen bisa dipasang lagi kapan saja.`}
+          confirmLabel="Ya, Lepas"
+          danger
+        />
+
+        {/* Popup peringatan: reset semua data */}
+        <ConfirmSheet
+          open={confirmReset}
+          onClose={() => setConfirmReset(false)}
+          onConfirm={resetData}
+          title="Reset Semua Data?"
+          desc="Seluruh kendaraan, komponen, riwayat servis, perjalanan, dan pengeluaran pada akun ini akan dihapus PERMANEN. Akun kembali kosong seperti baru dibuat. Tindakan ini tidak bisa dibatalkan."
+          confirmLabel="Hapus Semua Data"
+          danger
+        />
+
         {/* Settings */}
         <AnimatePresence>
           {settingsOpen && (
@@ -1081,7 +1185,7 @@ export default function Home() {
                   setEditVehicle(v)
                 }}
                 onDeleteVehicle={deleteVehicle}
-                onResetData={resetData}
+                onResetData={() => setConfirmReset(true)}
                 onLogout={logout}
                 onBack={() => setSettingsOpen(false)}
               />

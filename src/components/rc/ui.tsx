@@ -484,12 +484,15 @@ export function Sheet({
   title,
   children,
   maxWidth = 'max-w-[430px]',
+  zIndex = 50,
 }: {
   open: boolean
   onClose: () => void
   title: string
   children: ReactNode
   maxWidth?: string
+  /** Naikkan bila sheet dibuka di atas overlay lain (mis. panel pengaturan) */
+  zIndex?: number
 }) {
   useEffect(() => {
     if (!open) return
@@ -501,7 +504,7 @@ export function Sheet({
   }, [open, onClose])
   if (!open) return null
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+    <div className="fixed inset-0 flex items-end justify-center sm:items-center" style={{ zIndex }}>
       <button
         type="button"
         aria-label="Tutup"
@@ -561,5 +564,61 @@ export function ConfirmRow({
         </Btn>
       </div>
     </Card>
+  )
+}
+
+// ---------- Popup peringatan (konfirmasi aksi penting) ----------
+
+export function ConfirmSheet({
+  open,
+  onClose,
+  onConfirm,
+  title,
+  desc,
+  confirmLabel,
+  danger,
+}: {
+  open: boolean
+  onClose: () => void
+  onConfirm: () => void
+  title: string
+  desc: string
+  confirmLabel: string
+  danger?: boolean
+}) {
+  return (
+    <Sheet open={open} onClose={onClose} title={title} zIndex={60}>
+      <div className="flex flex-col gap-4">
+        <span
+          className={cn(
+            'flex h-12 w-12 items-center justify-center rounded-2xl',
+            danger ? 'bg-danger/12 text-danger' : 'bg-warn/15 text-warn'
+          )}
+          aria-hidden="true"
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" />
+            <path d="M12 9v4" />
+            <path d="M12 17h.01" />
+          </svg>
+        </span>
+        <p className="text-[14px] leading-relaxed text-muted-foreground">{desc}</p>
+        <div className="flex gap-2">
+          <Btn variant="outline" full onClick={onClose}>
+            Batal
+          </Btn>
+          <Btn
+            variant={danger ? 'danger' : 'lime'}
+            full
+            onClick={() => {
+              onClose()
+              onConfirm()
+            }}
+          >
+            {confirmLabel}
+          </Btn>
+        </div>
+      </div>
+    </Sheet>
   )
 }

@@ -31,6 +31,11 @@ export async function POST(req: Request) {
       data: { name, email, passwordHash },
       select: { id: true, name: true, email: true },
     })
+
+    // Akun baru = mulai bersih. Sekalian buang sisa data demo lama
+    // (kendaraan tanpa pemilik) agar tidak menumpuk di database.
+    await db.vehicle.deleteMany({ where: { userId: null } })
+
     await createSession(user.id)
     return NextResponse.json({ user })
   } catch (e) {

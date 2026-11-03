@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { rateLimit } from '@/lib/rate-limit'
+import { ownedVehicle, sessionUserId } from '@/lib/guard'
 
 // Simpan perjalanan baru & tambahkan jaraknya ke odometer kendaraan
 export async function POST(req: NextRequest) {
@@ -22,7 +23,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'vehicleId wajib diisi' }, { status: 400 })
     }
 
-    const vehicle = await db.vehicle.findUnique({ where: { id: vehicleId } })
+    const userId = await sessionUserId()
+    if (!userId) {
+      return NextResponse.json({ error: 'Belum login' }, { status: 401 })
+    }
+    const vehicle = await ownedVehicle(vehicleId, userId)
     if (!vehicle) {
       return NextResponse.json({ error: 'Kendaraan tidak ditemukan' }, { status: 404 })
     }

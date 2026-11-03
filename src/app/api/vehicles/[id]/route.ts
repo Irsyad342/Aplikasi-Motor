@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { rateLimit } from '@/lib/rate-limit'
+import { ownedVehicle, sessionUserId } from '@/lib/guard'
 
 type Params = { params: Promise<{ id: string }> }
+
+async function requireOwned(id: string) {
+  const userId = await sessionUserId()
+  if (!userId) return { error: 'Belum login', status: 401 as const }
+  const vehicle = await ownedVehicle(id, userId)
+  if (!vehicle) return { error: 'Kendaraan tidak ditemukan', status: 404 as const }
+  return { vehicle }
+}
 
 export async function PATCH(req: NextRequest, { params }: Params) {
   const rl = rateLimit(req, 'write', 'vehicles')
@@ -16,9 +25,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const { id } = await params
     const body = await req.json()
 
-    const existing = await db.vehicle.findUnique({ where: { id } })
-    if (!existing) {
-      return NextResponse.json({ error: 'Kendaraan tidak ditemukan' }, { status: 404 })
+    const guard = await requireOwned(id)
+    if ('error' in guard) {
+      return NextResponse.json({ error: guard.error }, { status: guard.status })
     }
 
     const data: Record<string, unknown> = {}
@@ -46,10 +55,13 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   }
   try {
     const { id } = await params
-    const count = await db.vehicle.count()
-    if (count <= 1) {
-      return NextResponse.json({ error: 'Minimal satu kendaraan harus ada' }, { status: 400 })
+    const guard = await requireOwned(id)
+    if ('error' in guard) {
+      return NextResponse.json({ error: guard.error }, { status: guard.status })
     }
+
+    // Hapus kendaraan terakhir diperbolehkan — aplikasi menampilkan
+    // layar sambutan untuk menambah kendaraan lagi.
     await db.vehicle.delete({ where: { id } })
     return NextResponse.json({ ok: true })
   } catch (error) {

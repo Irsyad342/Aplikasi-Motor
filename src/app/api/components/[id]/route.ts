@@ -1,10 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { rateLimit } from '@/lib/rate-limit'
+import { sessionUserId } from '@/lib/guard'
 
 type Params = { params: Promise<{ id: string }> }
 
 const DAY = 86_400_000
+
+/** Muat komponen + pastikan kendaraannya milik user yang login. */
+async function loadOwnedComponent(id: string) {
+  const userId = await sessionUserId()
+  if (!userId) return { error: 'Belum login', status: 401 as const }
+  const component = await db.component.findFirst({
+    where: { id, vehicle: { userId } },
+    include: { vehicle: true },
+  })
+  if (!component) return { error: 'Komponen tidak ditemukan', status: 404 as const }
+  return { component }
+}
 
 export async function PATCH(req: NextRequest, { params }: Params) {
   const rl = rateLimit(req, 'write', 'components')
@@ -18,14 +31,11 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const { id } = await params
     const body = await req.json()
 
-    const component = await db.component.findUnique({
-      where: { id },
-      include: { vehicle: true },
-    })
-    if (!component) {
-      return NextResponse.json({ error: 'Komponen tidak ditemukan' }, { status: 404 })
+    const loaded = await loadOwnedComponent(id)
+    if ('error' in loaded) {
+      return NextResponse.json({ error: loaded.error }, { status: loaded.status })
     }
-
+    const component = loaded.component
     const data: Record<string, unknown> = {}
 
     // Pasang komponen yang belum terpasang
@@ -35,6 +45,20 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       data.lastServiceDate = new Date()
       data.hasService = false
       await db.component.update({ where: { id }, data })
+      return NextResponse.json({ ok: true })
+    }
+
+    // Lepas komponen dari kendaraan — kembali ke katalog
+    if (body.action === 'uninstall') {
+      await db.component.update({
+        where: { id },
+        data: {
+          installed: false,
+          hasService: false,
+          lastServiceOdo: component.vehicle.odometer,
+          lastServiceDate: new Date(),
+        },
+      })
       return NextResponse.json({ ok: true })
     }
 
@@ -80,19 +104,16 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   }
   try {
     const { id } = await params
-    const component = await db.component.findUnique({
-      where: { id },
-      include: { vehicle: true },
-    })
-    if (!component) {
-      return NextResponse.json({ error: 'Komponen tidak ditemukan' }, { status: 404 })
+    const loaded = await loadOwnedComponent(id)
+    if ('error' in loaded) {
+      return NextResponse.json({ error: loaded.error }, { status: loaded.status })
     }
     await db.component.update({
       where: { id },
       data: {
         installed: false,
         hasService: false,
-        lastServiceOdo: component.vehicle.odometer,
+        lastServiceOdo: loaded.component.vehicle.odometer,
         lastServiceDate: new Date(),
       },
     })

@@ -1,8 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { rateLimit } from '@/lib/rate-limit'
+import { sessionUserId } from '@/lib/guard'
 
 type Params = { params: Promise<{ id: string }> }
+
+/** Muat trip milik akun yang login (via kendaraan). */
+async function loadOwnedTrip(id: string) {
+  const userId = await sessionUserId()
+  if (!userId) return { error: 'Belum login', status: 401 as const }
+  const trip = await db.trip.findFirst({
+    where: { id, vehicle: { userId } },
+    include: { vehicle: true },
+  })
+  if (!trip) return { error: 'Perjalanan tidak ditemukan', status: 404 as const }
+  return { trip }
+}
 
 // Edit perjalanan — jarak & tanggal.
 // Odometer kendaraan ikut disesuaikan (selisih jarak lama -> baru) agar
@@ -19,14 +32,12 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const { id } = await params
     const body = await req.json()
 
-    const trip = await db.trip.findUnique({ where: { id } })
-    if (!trip) {
-      return NextResponse.json({ error: 'Perjalanan tidak ditemukan' }, { status: 404 })
+    const loaded = await loadOwnedTrip(id)
+    if ('error' in loaded) {
+      return NextResponse.json({ error: loaded.error }, { status: loaded.status })
     }
-    const vehicle = await db.vehicle.findUnique({ where: { id: trip.vehicleId } })
-    if (!vehicle) {
-      return NextResponse.json({ error: 'Kendaraan tidak ditemukan' }, { status: 404 })
-    }
+    const trip = loaded.trip
+    const vehicle = loaded.trip.vehicle
 
     const data: Record<string, unknown> = {}
 
@@ -75,14 +86,12 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   }
   try {
     const { id } = await params
-    const trip = await db.trip.findUnique({ where: { id } })
-    if (!trip) {
-      return NextResponse.json({ error: 'Perjalanan tidak ditemukan' }, { status: 404 })
+    const loaded = await loadOwnedTrip(id)
+    if ('error' in loaded) {
+      return NextResponse.json({ error: loaded.error }, { status: loaded.status })
     }
-    const vehicle = await db.vehicle.findUnique({ where: { id: trip.vehicleId } })
-    if (!vehicle) {
-      return NextResponse.json({ error: 'Kendaraan tidak ditemukan' }, { status: 404 })
-    }
+    const trip = loaded.trip
+    const vehicle = loaded.trip.vehicle
 
     const newOdometer = Math.max(0, Math.round(vehicle.odometer - trip.distance))
 

@@ -16,6 +16,7 @@ model User {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   sessions     Session[]
+  vehicles     Vehicle[]
 }
 
 model Session {
@@ -31,6 +32,8 @@ model Session {
 
 model Vehicle {
   id        String      @id @default(cuid())
+  userId    String?
+  owner     User?       @relation(fields: [userId], references: [id], onDelete: Cascade)
   name      String
   type      String      @default("motor") // motor | mobil
   plate     String?
@@ -41,6 +44,8 @@ model Vehicle {
   components Component[]
   trips      Trip[]
   expenses   Expense[]
+
+  @@index([userId])
 }
 
 model Component {

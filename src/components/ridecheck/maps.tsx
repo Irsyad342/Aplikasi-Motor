@@ -12,9 +12,20 @@ type LMarker = import('leaflet').Marker
 type LPolyline = import('leaflet').Polyline
 type LLatLng = import('leaflet').LatLngExpression
 
-const TILES = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
+// Tile Esri Gray Canvas — grayscale minimalis sesuai desain MotoMate:
+// jalur lime kontras, nama jalan/daerah terbaca, tanpa detail berlebihan.
+// light untuk tema terang, dark untuk gelap. Gratis, tanpa API key.
+const TILE_LIGHT =
+  'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}'
+const TILE_DARK =
+  'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}'
 const ATTRIB =
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+  '<a href="https://www.esri.com/" target="_blank" rel="noreferrer">Esri</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> contributors'
+
+function currentTileUrl(): string {
+  if (typeof document === 'undefined') return TILE_LIGHT
+  return document.documentElement.classList.contains('dark') ? TILE_DARK : TILE_LIGHT
+}
 
 // ---------- Ikon marker ----------
 
@@ -51,7 +62,15 @@ function bengkelIconHtml(b: Bengkel, selected: boolean) {
 
 const RC_PING_CSS = `
 @keyframes rcPing { 0% { transform: scale(.6); opacity: .8 } 80%, 100% { transform: scale(1.9); opacity: 0 } }
-.leaflet-container { font-family: inherit; }
+.leaflet-container { font-family: inherit; background: var(--card); }
+.leaflet-control-attribution {
+  background: color-mix(in srgb, var(--background) 85%, transparent) !important;
+  color: var(--muted-foreground);
+  font-size: 9px;
+  padding: 1px 6px;
+  border-radius: 8px 0 0 0;
+}
+.leaflet-control-attribution a { color: var(--muted-foreground); }
 `
 
 // ---------- Hook dasar peta ----------
@@ -61,6 +80,7 @@ function useLeafletMap(
   opts: { center: LLatLng; zoom: number }
 ) {
   const mapRef = useRef<LMap | null>(null)
+  const tileRef = useRef<import('leaflet').TileLayer | null>(null)
   const readyRef = useRef(false)
   const [ready, setReady] = useState(false)
 
@@ -75,7 +95,18 @@ function useLeafletMap(
         zoomControl: false,
         attributionControl: true,
       })
-      L.tileLayer(TILES, { attribution: ATTRIB, maxZoom: 19 }).addTo(map)
+      tileRef.current = L.tileLayer(currentTileUrl(), {
+        attribution: ATTRIB,
+        maxZoom: 16,
+      }).addTo(map)
+      // Ikuti pergantian tema terang/gelap — tile langsung bertukar
+      const themeObs = new MutationObserver(() => {
+        tileRef.current?.setUrl(currentTileUrl())
+      })
+      themeObs.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['class'],
+      })
       mapRef.current = map
       readyRef.current = true
       setReady(true)
@@ -86,6 +117,7 @@ function useLeafletMap(
       cancelled = true
       mapRef.current?.remove()
       mapRef.current = null
+      tileRef.current = null
       readyRef.current = false
     }
   }, [])

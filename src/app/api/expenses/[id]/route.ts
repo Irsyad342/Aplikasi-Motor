@@ -1,10 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { rateLimit } from '@/lib/rate-limit'
+import { sessionUserId } from '@/lib/guard'
 
 type Params = { params: Promise<{ id: string }> }
 
 const CATEGORIES = ['bensin', 'parkir', 'servis', 'lainnya']
+
+/** Muat pengeluaran milik akun yang login (via kendaraan). */
+async function loadOwnedExpense(id: string) {
+  const userId = await sessionUserId()
+  if (!userId) return { error: 'Belum login', status: 401 as const }
+  const expense = await db.expense.findFirst({
+    where: { id, vehicle: { userId } },
+  })
+  if (!expense) return { error: 'Pengeluaran tidak ditemukan', status: 404 as const }
+  return { expense }
+}
 
 // Edit pengeluaran — kategori, jumlah, liter, catatan, tanggal
 export async function PATCH(req: NextRequest, { params }: Params) {
@@ -19,9 +31,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const { id } = await params
     const body = await req.json()
 
-    const existing = await db.expense.findUnique({ where: { id } })
-    if (!existing) {
-      return NextResponse.json({ error: 'Pengeluaran tidak ditemukan' }, { status: 404 })
+    const loaded = await loadOwnedExpense(id)
+    if ('error' in loaded) {
+      return NextResponse.json({ error: loaded.error }, { status: loaded.status })
     }
 
     const data: Record<string, unknown> = {}
@@ -73,9 +85,9 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   }
   try {
     const { id } = await params
-    const existing = await db.expense.findUnique({ where: { id } })
-    if (!existing) {
-      return NextResponse.json({ error: 'Pengeluaran tidak ditemukan' }, { status: 404 })
+    const loaded = await loadOwnedExpense(id)
+    if ('error' in loaded) {
+      return NextResponse.json({ error: loaded.error }, { status: loaded.status })
     }
     await db.expense.delete({ where: { id } })
     return NextResponse.json({ ok: true })

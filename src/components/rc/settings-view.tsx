@@ -238,19 +238,12 @@ export function SettingsView({
           <Card>
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[14px] font-extrabold text-foreground">Atur Ulang Data Demo</p>
+                <p className="text-[14px] font-extrabold text-foreground">Reset Data</p>
                 <p className="mt-0.5 text-[12px] leading-snug text-muted-foreground">
-                  Kembalikan ke data contoh awal
+                  Hapus seluruh data akun ini dan mulai dari awal
                 </p>
               </div>
-              <Btn
-                variant="danger"
-                size="sm"
-                className="shrink-0"
-                onClick={() => {
-                  if (window.confirm('Atur ulang semua data ke demo awal?')) onResetData()
-                }}
-              >
+              <Btn variant="danger" size="sm" className="shrink-0" onClick={onResetData}>
                 Reset
               </Btn>
             </div>
