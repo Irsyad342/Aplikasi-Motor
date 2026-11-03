@@ -19,6 +19,7 @@ model Vehicle {
   updatedAt DateTime    @updatedAt
   components Component[]
   trips      Trip[]
+  expenses   Expense[]
 }
 
 model Component {
@@ -53,10 +54,24 @@ model ServiceRecord {
   odometer    Int
   date        DateTime  @default(now())
   note        String?
+  cost        Int? // biaya servis dalam Rupiah
+  workshop    String? // nama bengkel (opsional)
   createdAt   DateTime  @default(now())
 
   @@index([vehicleId])
   @@index([componentId])
+}
+
+model Expense {
+  id        String   @id @default(cuid())
+  vehicleId String
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  category  String   @default("lainnya") // bensin | parkir | servis | lainnya
+  amount    Int // Rupiah
+  note      String?
+  date      DateTime @default(now())
+
+  @@index([vehicleId])
 }
 
 model Trip {

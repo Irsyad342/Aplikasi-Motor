@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Building2, Navigation, Phone, Search, Star, Wrench, Map as MapIcon,
-  List, LocateFixed, ChevronDown, X, MapPin, AlertTriangle, RefreshCw, WifiOff,
+  List, LocateFixed, ChevronDown, X, MapPin, AlertTriangle, RefreshCw, WifiOff, ArrowLeft,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { DEFAULT_LOCATION, formatDistance, type LatLng } from '@/lib/geo'
@@ -20,7 +20,7 @@ type Mode = 'peta' | 'daftar'
 
 const RADII = [2, 5, 10, 25, 50]
 
-export function BengkelView() {
+export function BengkelView({ onBack }: { onBack?: () => void }) {
   const [mode, setMode] = useState<Mode>('daftar')
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<Filter>('semua')
@@ -136,9 +136,19 @@ export function BengkelView() {
 
   return (
     <div className="pb-6">
-      <header className="px-4 pb-3 pt-5">
-        <h1 className="text-center text-xl font-bold text-zinc-900">Bengkel Pulau Jawa</h1>
-        <div className="mt-0.5 flex items-center justify-center gap-1.5 text-center text-xs text-zinc-400">
+      <header className="px-4 pb-3 pt-1">
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            aria-label="Kembali"
+            className="press mb-2 flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card text-foreground shadow-sm"
+          >
+            <ArrowLeft size={18} />
+          </button>
+        )}
+        <h1 className="text-center text-xl font-extrabold text-foreground">Bengkel Pulau Jawa</h1>
+        <div className="mt-0.5 flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
           <button
             type="button"
             onClick={loc.refresh}
@@ -148,9 +158,9 @@ export function BengkelView() {
             <LocateFixed
               size={12}
               className={cn(
-                loc.status === 'locating' && 'animate-pulse text-sky-500',
-                loc.status === 'granted' && 'text-green-500',
-                (loc.status === 'denied' || loc.status === 'unavailable') && 'text-amber-500'
+                loc.status === 'locating' && 'animate-pulse text-foreground',
+                loc.status === 'granted' && 'text-ok',
+                (loc.status === 'denied' || loc.status === 'unavailable') && 'text-warn'
               )}
             />
           </button>
@@ -166,11 +176,11 @@ export function BengkelView() {
 
       {/* Peringatan di luar Pulau Jawa */}
       {outsideJava && !activeCity && (
-        <div className="mx-4 mb-3 flex items-start gap-2.5 rounded-2xl bg-amber-50 p-3.5 ring-1 ring-amber-200">
-          <AlertTriangle size={16} className="mt-0.5 shrink-0 text-amber-500" />
-          <div className="text-xs leading-relaxed text-amber-800">
+        <div className="mx-4 mb-3 flex items-start gap-2.5 rounded-2xl bg-warn/10 p-3.5 ring-1 ring-warn/30">
+          <AlertTriangle size={16} className="mt-0.5 shrink-0 text-warn" />
+          <div className="text-xs leading-relaxed text-warn">
             <p className="font-bold">Lokasimu di luar Pulau Jawa</p>
-            <p className="mt-0.5 text-amber-700">
+            <p className="mt-0.5 text-warn">
               Cakupan bengkel hanya Pulau Jawa. Menampilkan pusat Jakarta — pilih kota untuk mengubah.
             </p>
           </div>
@@ -179,15 +189,15 @@ export function BengkelView() {
 
       {/* Status sumber data */}
       <div className="flex items-center justify-between px-4">
-        <p className="flex items-center gap-1.5 text-[11px] font-semibold text-zinc-400">
+        <p className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
           {live ? (
             <>
-              <MapPin size={11} className="text-green-500" />
+              <MapPin size={11} className="text-ok" />
               Data live OpenStreetMap · Pulau Jawa
             </>
           ) : (
             <>
-              <WifiOff size={11} className="text-amber-500" />
+              <WifiOff size={11} className="text-warn" />
               Mode demo (server peta tidak terjangkau)
             </>
           )}
@@ -204,9 +214,9 @@ export function BengkelView() {
             setFetchNonce((n) => n + 1)
           }}
           aria-label="Muat ulang data bengkel"
-          className="text-zinc-300 active:scale-90"
+          className="text-muted-foreground/70 active:scale-90"
         >
-          <RefreshCw size={14} className={cn(loading && 'animate-spin text-sky-500')} />
+          <RefreshCw size={14} className={cn(loading && 'animate-spin text-foreground')} />
         </button>
       </div>
 
@@ -215,21 +225,21 @@ export function BengkelView() {
         <div className="relative">
           <Search
             size={17}
-            className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400"
+            className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground"
           />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Cari nama bengkel atau merek…"
             aria-label="Cari bengkel di Pulau Jawa"
-            className="w-full rounded-full bg-white py-3 pl-11 pr-10 text-sm text-zinc-800 shadow-sm outline-none placeholder:text-zinc-400 focus:ring-2 focus:ring-sky-400"
+            className="w-full rounded-full bg-card py-3 pl-11 pr-10 text-sm text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-ring/40"
           />
           {query && (
             <button
               type="button"
               onClick={() => setQuery('')}
               aria-label="Hapus pencarian"
-              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-zinc-100 p-1 text-zinc-400"
+              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-muted p-1 text-muted-foreground"
             >
               <X size={13} />
             </button>
@@ -242,23 +252,23 @@ export function BengkelView() {
         <button
           type="button"
           onClick={() => setCityListOpen((o) => !o)}
-          className="flex w-full items-center justify-between rounded-2xl bg-white px-4 py-2.5 shadow-sm"
+          className="flex w-full items-center justify-between rounded-2xl bg-card px-4 py-2.5 shadow-sm"
           aria-expanded={cityListOpen}
         >
-          <span className="flex items-center gap-2 text-sm font-semibold text-zinc-700">
-            <MapIcon size={15} className="text-sky-500" />
+          <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
+            <MapIcon size={15} className="text-foreground" />
             {activeCity ?? 'Terdekat dari lokasiku'}
             {!activeCity && !userPos && !loc.status.startsWith('den') && loc.status !== 'unavailable' && (
-              <span className="text-[10px] font-medium text-zinc-400">· mencari GPS…</span>
+              <span className="text-[10px] font-medium text-muted-foreground">· mencari GPS…</span>
             )}
             {!activeCity && (loc.status === 'denied' || loc.status === 'unavailable') && (
-              <span className="text-[10px] font-medium text-amber-500">· GPS nonaktif</span>
+              <span className="text-[10px] font-medium text-warn">· GPS nonaktif</span>
             )}
           </span>
-          <ChevronDown size={16} className={cn('text-zinc-400 transition-transform', cityListOpen && 'rotate-180')} />
+          <ChevronDown size={16} className={cn('text-muted-foreground transition-transform', cityListOpen && 'rotate-180')} />
         </button>
         {cityListOpen && (
-          <div className="absolute inset-x-4 z-30 mt-2 max-h-64 overflow-y-auto rounded-2xl bg-white p-1.5 shadow-xl ring-1 ring-zinc-100">
+          <div className="absolute inset-x-4 z-30 mt-2 max-h-64 overflow-y-auto rounded-2xl bg-card p-1.5 shadow-xl ring-1 ring-border">
             <button
               type="button"
               onClick={() => {
@@ -267,15 +277,15 @@ export function BengkelView() {
               }}
               className={cn(
                 'flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-semibold',
-                !activeCity ? 'bg-sky-50 text-sky-600' : 'text-zinc-700 active:bg-zinc-50'
+                !activeCity ? 'bg-lime/15 text-foreground' : 'text-foreground active:bg-muted/60'
               )}
             >
               Terdekat dari lokasiku
-              <span className="text-[10px] text-zinc-400">
+              <span className="text-[10px] text-muted-foreground">
                 {userPos && isInJava(userPos.lat, userPos.lng) ? 'dari GPS' : 'pusat Jawa'}
               </span>
             </button>
-            <div className="mx-1 my-1 h-px bg-zinc-100" />
+            <div className="mx-1 my-1 h-px bg-muted" />
             {CITY_LIST.map((c) => (
               <button
                 key={c.city}
@@ -287,11 +297,11 @@ export function BengkelView() {
                 }}
                 className={cn(
                   'flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-semibold',
-                  activeCity === c.city ? 'bg-sky-50 text-sky-600' : 'text-zinc-700 active:bg-zinc-50'
+                  activeCity === c.city ? 'bg-lime/15 text-foreground' : 'text-foreground active:bg-muted/60'
                 )}
               >
                 {c.city}
-                <span className="text-[10px] font-normal text-zinc-400">{c.province}</span>
+                <span className="text-[10px] font-normal text-muted-foreground">{c.province}</span>
               </button>
             ))}
           </div>
@@ -300,7 +310,7 @@ export function BengkelView() {
 
       {/* Mode + filter */}
       <div className="flex items-center gap-2 px-4 pt-3">
-        <div className="flex flex-1 items-center gap-1.5 rounded-full bg-zinc-200/70 p-1">
+        <div className="flex flex-1 items-center gap-1.5 rounded-full bg-muted p-1">
           {(
             [
               { v: 'daftar' as Mode, label: 'Daftar', icon: List },
@@ -314,8 +324,8 @@ export function BengkelView() {
               className={cn(
                 'flex flex-1 items-center justify-center gap-1.5 rounded-full py-1.5 text-xs transition-all',
                 mode === m.v
-                  ? 'bg-white font-bold text-zinc-900 shadow-sm'
-                  : 'font-medium text-zinc-500'
+                  ? 'bg-card font-bold text-foreground shadow-sm'
+                  : 'font-medium text-muted-foreground'
               )}
             >
               <m.icon size={13} />
@@ -331,8 +341,8 @@ export function BengkelView() {
             className={cn(
               'rounded-full px-3 py-1.5 text-xs font-bold transition-colors',
               filter === f.value
-                ? 'bg-zinc-900 text-white'
-                : 'bg-white text-zinc-500 shadow-sm'
+                ? 'bg-ink text-background'
+                : 'bg-card text-muted-foreground shadow-sm'
             )}
           >
             {f.label}
@@ -343,7 +353,7 @@ export function BengkelView() {
       {/* Chip radius */}
       {!query && (
         <div className="flex items-center gap-1.5 px-4 pt-3">
-          <span className="text-[11px] font-semibold text-zinc-400">Radius:</span>
+          <span className="text-[11px] font-semibold text-muted-foreground">Radius:</span>
           {RADII.map((r) => (
             <button
               key={r}
@@ -351,7 +361,7 @@ export function BengkelView() {
               onClick={() => setRadiusKm(r)}
               className={cn(
                 'rounded-full px-2.5 py-1 text-[11px] font-bold transition-colors',
-                radiusKm === r ? 'bg-sky-500 text-white' : 'bg-white text-zinc-500 shadow-sm'
+                radiusKm === r ? 'bg-lime text-ink' : 'bg-card text-muted-foreground shadow-sm'
               )}
             >
               {r} km
@@ -361,7 +371,7 @@ export function BengkelView() {
       )}
 
       {/* Info jumlah hasil */}
-      <p className="px-4 pt-3 text-[11px] font-medium text-zinc-400">
+      <p className="px-4 pt-3 text-[11px] font-medium text-muted-foreground">
         {loading
           ? 'Memuat bengkel dari peta…'
           : query
@@ -393,7 +403,7 @@ export function BengkelView() {
             </div>
           )}
           {!loading && shown.length === 0 && (
-            <p className="pt-3 text-center text-xs text-zinc-400">
+            <p className="pt-3 text-center text-xs text-muted-foreground">
               Tidak ada bengkel dalam radius — perluas radius atau pilih kota lain.
             </p>
           )}
@@ -402,24 +412,24 @@ export function BengkelView() {
         <div className="space-y-3 px-4 pt-3">
           {loading ? (
             [...Array(4)].map((_, i) => (
-              <div key={i} className="animate-pulse rounded-3xl bg-white p-4 shadow-sm">
+              <div key={i} className="animate-pulse rounded-3xl bg-card p-4 shadow-sm">
                 <div className="flex gap-3">
-                  <div className="h-12 w-12 shrink-0 rounded-2xl bg-zinc-100" />
+                  <div className="h-12 w-12 shrink-0 rounded-2xl bg-muted" />
                   <div className="flex-1 space-y-2 py-1">
-                    <div className="h-3.5 w-3/4 rounded-full bg-zinc-100" />
-                    <div className="h-3 w-1/2 rounded-full bg-zinc-100" />
+                    <div className="h-3.5 w-3/4 rounded-full bg-muted" />
+                    <div className="h-3 w-1/2 rounded-full bg-muted" />
                   </div>
                 </div>
-                <div className="mt-3 h-3 w-2/3 rounded-full bg-zinc-100" />
+                <div className="mt-3 h-3 w-2/3 rounded-full bg-muted" />
               </div>
             ))
           ) : shown.length === 0 ? (
-            <div className="rounded-3xl bg-white p-8 text-center shadow-sm">
-              <Wrench size={32} className="mx-auto text-zinc-300" />
-              <p className="mt-2 text-sm font-semibold text-zinc-700">
+            <div className="rounded-3xl bg-card p-8 text-center shadow-sm">
+              <Wrench size={32} className="mx-auto text-muted-foreground/70" />
+              <p className="mt-2 text-sm font-semibold text-foreground">
                 Bengkel tidak ditemukan
               </p>
-              <p className="mt-1 text-xs text-zinc-400">
+              <p className="mt-1 text-xs text-muted-foreground">
                 Coba kata kunci lain, perluas radius, atau pilih daerah lain di Pulau Jawa.
               </p>
             </div>
@@ -452,7 +462,7 @@ function BengkelCard({
   return (
     <article
       className={cn(
-        'rounded-3xl bg-white shadow-sm',
+        'rounded-3xl bg-card shadow-sm',
         compact ? 'p-4' : 'p-4'
       )}
     >
@@ -462,7 +472,7 @@ function BengkelCard({
             type="button"
             onClick={onClose}
             aria-label="Tutup detail"
-            className="flex h-6 w-6 items-center justify-center rounded-full bg-zinc-100 text-zinc-400"
+            className="flex h-6 w-6 items-center justify-center rounded-full bg-muted text-muted-foreground"
           >
             <X size={13} />
           </button>
@@ -472,48 +482,48 @@ function BengkelCard({
         <span
           className={cn(
             'flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl',
-            b.type === 'resmi' ? 'bg-sky-50' : 'bg-zinc-100'
+            b.type === 'resmi' ? 'bg-lime/15' : 'bg-muted'
           )}
         >
           {b.type === 'resmi' ? (
-            <Building2 size={22} className="text-sky-600" />
+            <Building2 size={22} className="text-foreground" />
           ) : (
-            <Wrench size={22} className="text-zinc-600" />
+            <Wrench size={22} className="text-muted-foreground" />
           )}
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <h2 className="text-sm font-bold leading-snug text-zinc-900">{b.name}</h2>
+            <h2 className="text-sm font-bold leading-snug text-foreground">{b.name}</h2>
             <span
               className={cn(
                 'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold',
-                b.type === 'resmi' ? 'bg-sky-50 text-sky-600' : 'bg-zinc-100 text-zinc-500'
+                b.type === 'resmi' ? 'bg-lime/15 text-foreground' : 'bg-muted text-muted-foreground'
               )}
             >
               {b.type === 'resmi' ? 'Resmi' : 'Umum'}
             </span>
           </div>
-          <p className="mt-0.5 text-[11px] text-zinc-400">
+          <p className="mt-0.5 text-[11px] text-muted-foreground">
             {b.brand}
             {b.city ? ` · ${b.city}` : ''}
           </p>
           {typeof b.rating === 'number' ? (
             <div className="mt-1 flex items-center gap-2">
-              <span className="flex items-center gap-1 text-xs font-bold text-zinc-800">
-                <Star size={13} className="fill-amber-400 text-amber-400" />
+              <span className="flex items-center gap-1 text-xs font-bold text-foreground">
+                <Star size={13} className="fill-warn text-warn" />
                 {b.rating}
               </span>
-              <span className="text-[11px] text-zinc-400">({b.reviews} ulasan)</span>
-              <span className="text-[11px] font-bold text-sky-600">· {formatDistance(dist)}</span>
+              <span className="text-[11px] text-muted-foreground">({b.reviews} ulasan)</span>
+              <span className="text-[11px] font-bold text-foreground">· {formatDistance(dist)}</span>
             </div>
           ) : (
-            <p className="mt-1 text-[11px] font-bold text-sky-600">{formatDistance(dist)}</p>
+            <p className="mt-1 text-[11px] font-bold text-foreground">{formatDistance(dist)}</p>
           )}
         </div>
       </div>
 
       {b.address && (
-        <p className="mt-2.5 text-xs leading-relaxed text-zinc-400">{b.address}</p>
+        <p className="mt-2.5 text-xs leading-relaxed text-muted-foreground">{b.address}</p>
       )}
 
       {b.services.length > 0 && (
@@ -521,7 +531,7 @@ function BengkelCard({
           {b.services.slice(0, 3).map((s) => (
             <span
               key={s}
-              className="rounded-full bg-zinc-100 px-2.5 py-1 text-[10px] font-semibold text-zinc-500"
+              className="rounded-full bg-muted px-2.5 py-1 text-[10px] font-semibold text-muted-foreground"
             >
               {s}
             </span>
@@ -529,11 +539,11 @@ function BengkelCard({
         </div>
       )}
 
-      <div className="mt-3 flex items-center justify-between border-t border-zinc-100 pt-3">
+      <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
         <span
           className={cn(
             'text-xs font-bold',
-            open ? 'text-green-600' : 'text-red-500'
+            open ? 'text-ok' : 'text-danger'
           )}
         >
           {b.hours ? `${open ? 'Buka' : 'Tutup'} · ${b.hours}` : open ? 'Buka' : 'Tutup'}
@@ -542,7 +552,7 @@ function BengkelCard({
           {b.phone && (
             <a
               href={`tel:${b.phone.replace(/[^0-9+]/g, '')}`}
-              className="flex items-center gap-1 rounded-full bg-zinc-100 px-3 py-1.5 text-xs font-bold text-zinc-600 active:scale-95"
+              className="flex items-center gap-1 rounded-full bg-muted px-3 py-1.5 text-xs font-bold text-muted-foreground active:scale-95"
             >
               <Phone size={13} />
               Telepon
@@ -552,7 +562,7 @@ function BengkelCard({
             href={gmapsDirectionUrl(b, refPoint)}
             target="_blank"
             rel="noreferrer"
-            className="flex items-center gap-1 rounded-full bg-sky-500 px-3.5 py-1.5 text-xs font-bold text-white active:scale-95"
+            className="flex items-center gap-1 rounded-full bg-lime px-3.5 py-1.5 text-xs font-bold text-ink active:scale-95"
           >
             <Navigation size={13} />
             Rute

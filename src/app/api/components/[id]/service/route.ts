@@ -38,6 +38,11 @@ export async function POST(req: NextRequest, { params }: Params) {
           odometer,
           date,
           note: body.note ? String(body.note).trim().slice(0, 200) || null : null,
+          cost:
+            body.cost !== undefined && body.cost !== null && body.cost !== ''
+              ? Math.max(0, Math.round(Number(body.cost) || 0))
+              : null,
+          workshop: body.workshop ? String(body.workshop).trim().slice(0, 80) || null : null,
         },
       }),
       db.component.update({

@@ -60,6 +60,16 @@ export interface RecordDTO {
   odometer: number
   date: string
   note: string | null
+  cost: number | null
+  workshop: string | null
+}
+
+export interface ExpenseDTO {
+  id: string
+  category: string // bensin | parkir | servis | lainnya
+  amount: number
+  note: string | null
+  date: string
 }
 
 export interface AppState {
@@ -68,6 +78,7 @@ export interface AppState {
   components: ComponentDTO[]
   trips: TripDTO[]
   records: RecordDTO[]
+  expenses: ExpenseDTO[]
   catalogKeys: string[]
 }
 
@@ -85,12 +96,12 @@ export async function buildState(vehicleId?: string | null): Promise<AppState> {
     null
 
   if (!vehicle) {
-    return { vehicles, vehicle: null, components: [], trips: [], records: [], catalogKeys: [] }
+    return { vehicles, vehicle: null, components: [], trips: [], records: [], expenses: [], catalogKeys: [] }
   }
 
   const now = new Date()
 
-  const [components, trips, records, catalogItems] = await Promise.all([
+  const [components, trips, records, expenses, catalogItems] = await Promise.all([
     db.component.findMany({
       where: { vehicleId: vehicle.id },
       orderBy: [{ installed: 'desc' }, { name: 'asc' }],
@@ -105,6 +116,11 @@ export async function buildState(vehicleId?: string | null): Promise<AppState> {
       orderBy: { date: 'desc' },
       take: 100,
       include: { component: { select: { name: true, icon: true } } },
+    }),
+    db.expense.findMany({
+      where: { vehicleId: vehicle.id },
+      orderBy: { date: 'desc' },
+      take: 100,
     }),
     Promise.resolve(getCatalog(vehicle.type)),
   ])
@@ -164,6 +180,15 @@ export async function buildState(vehicleId?: string | null): Promise<AppState> {
       odometer: r.odometer,
       date: r.date.toISOString(),
       note: r.note,
+      cost: r.cost,
+      workshop: r.workshop,
+    })),
+    expenses: expenses.map((e) => ({
+      id: e.id,
+      category: e.category,
+      amount: e.amount,
+      note: e.note,
+      date: e.date.toISOString(),
     })),
     catalogKeys: catalogItems.map((i) => i.key),
   }
