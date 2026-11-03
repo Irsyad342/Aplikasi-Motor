@@ -6,8 +6,10 @@
  * (7 hari & 6 bulan), dan riwayat perjalanan. Semua angka dihitung dari props.
  */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { motion } from 'framer-motion'
 import {
+  Activity,
   Bike,
   CalendarDays,
   CircleDollarSign,
@@ -48,7 +50,7 @@ export interface RideViewProps {
   path: [number, number][]
   currentPos: [number, number] | null
   heading: number
-  locMode: 'waiting' | 'gps' | 'sim'
+  locMode: 'waiting' | 'gps'
   locStatus: string
   locError: string | null
   onRetryLocation: () => void
@@ -58,6 +60,19 @@ export interface RideViewProps {
 }
 
 const DAY_MS = 86_400_000
+
+/** Pembungkus section dengan animasi masuk halus — konsisten dengan halaman lain. */
+function Section({ delay = 0, children }: { delay?: number; children: ReactNode }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: 'easeOut', delay }}
+    >
+      {children}
+    </motion.div>
+  )
+}
 
 export function RideView(props: RideViewProps) {
   const {
@@ -112,7 +127,7 @@ export function RideView(props: RideViewProps) {
         if (d.getFullYear() * 12 + d.getMonth() === key) month += t.distance
       }
     }
-    return { total, month, count: trips.length }
+    return { total, month, count: trips.length, avg: trips.length > 0 ? total / trips.length : 0 }
   }, [trips, mounted])
 
   // ---------- Grafik: km per hari (7 hari terakhir, termasuk hari kosong) ----------
@@ -153,13 +168,12 @@ export function RideView(props: RideViewProps) {
   }, [trips, mounted])
 
   // ---------- Gaya tombol outline di atas kartu ink ----------
-  // Catatan: tanpa animasi stagger — konten langsung tampil agar terasa responsif.
   const outlineOnHero = 'border-white/20 bg-transparent text-hero-foreground hover:bg-white/10'
 
   return (
     <div className="space-y-6">
       {/* ---------- 1. Hero rekam perjalanan ---------- */}
-      <div>
+      <Section>
         {tracking === null ? (
           <Card className="rounded-[28px] bg-hero text-hero-foreground">
             <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-hero-foreground/50">
@@ -210,9 +224,9 @@ export function RideView(props: RideViewProps) {
         ) : (
           <Card className="overflow-hidden rounded-[28px] bg-hero text-hero-foreground">
             <div className="flex items-center justify-between gap-3">
-              {locMode === 'gps' && <Pill tone="lime">GPS Aktif</Pill>}
-              {locMode === 'sim' && <Pill tone="amber">Mode Simulasi</Pill>}
-              {locMode === 'waiting' && (
+              {locMode === 'gps' ? (
+                <Pill tone="lime">GPS Aktif</Pill>
+              ) : (
                 <Pill tone="gray" className="animate-pulse">
                   <span className="h-1.5 w-1.5 rounded-full bg-current" />
                   Mencari GPS…
@@ -225,7 +239,6 @@ export function RideView(props: RideViewProps) {
               path={path}
               current={currentPos}
               heading={heading}
-              simMode={locMode === 'sim'}
               className="mt-3 h-56 w-full overflow-hidden rounded-[20px]"
             />
 
@@ -248,7 +261,7 @@ export function RideView(props: RideViewProps) {
             {locMode === 'waiting' && (
               <div className="mt-3 flex flex-col items-center gap-1.5 text-center">
                 <p className="text-[12px] font-semibold text-hero-foreground/70">
-                  GPS mencari sinyal… pastikan Anda di luar ruangan
+                  Nyalakan GPS &amp; pastikan berada di luar ruangan agar jarak tercatat akurat
                 </p>
                 {locError && <p className="text-[11px] font-semibold text-warn">{locError}</p>}
                 {(locStatus === 'denied' || locStatus === 'unavailable') && (
@@ -260,35 +273,44 @@ export function RideView(props: RideViewProps) {
             )}
           </Card>
         )}
-      </div>
+      </Section>
 
       {/* ---------- 2. Statistik ---------- */}
-      <div className="grid grid-cols-3 gap-3">
-        <StatCard
-          icon={<Route size={15} />}
-          label="Total"
-          value={formatKm1(stats.total)}
-          unit="km"
-          className="p-4 [&_.stat-num]:text-lg"
-        />
-        <StatCard
-          icon={<CalendarDays size={15} />}
-          label="Bulan Ini"
-          value={formatKm1(stats.month)}
-          unit="km"
-          className="p-4 [&_.stat-num]:text-lg"
-        />
-        <StatCard
-          icon={<Navigation size={15} />}
-          label="Trip"
-          value={stats.count}
-          unit="x"
-          className="p-4 [&_.stat-num]:text-lg"
-        />
-      </div>
+      <Section delay={0.05}>
+        <div className="grid grid-cols-2 gap-3">
+          <StatCard
+            icon={<Route size={15} />}
+            label="Total"
+            value={formatKm1(stats.total)}
+            unit="km"
+            className="p-4 [&_.stat-num]:text-lg"
+          />
+          <StatCard
+            icon={<CalendarDays size={15} />}
+            label="Bulan Ini"
+            value={formatKm1(stats.month)}
+            unit="km"
+            className="p-4 [&_.stat-num]:text-lg"
+          />
+          <StatCard
+            icon={<Navigation size={15} />}
+            label="Trip"
+            value={stats.count}
+            unit="x"
+            className="p-4 [&_.stat-num]:text-lg"
+          />
+          <StatCard
+            icon={<Activity size={15} />}
+            label="Rata-rata / Trip"
+            value={formatKm1(stats.avg)}
+            unit="km"
+            className="p-4 [&_.stat-num]:text-lg"
+          />
+        </div>
+      </Section>
 
       {/* ---------- 3. Grafik ---------- */}
-      <div>
+      <Section delay={0.1}>
         <SectionTitle title="Aktivitas" />
         {trips.length === 0 ? (
           <EmptyState
@@ -308,10 +330,10 @@ export function RideView(props: RideViewProps) {
             </Card>
           </>
         )}
-      </div>
+      </Section>
 
       {/* ---------- 4. Riwayat perjalanan ---------- */}
-      <div>
+      <Section delay={0.15}>
         <SectionTitle title="Riwayat Perjalanan" action="Analitik" onAction={onOpenHistory} />
         {trips.length === 0 ? (
           <EmptyState
@@ -365,7 +387,7 @@ export function RideView(props: RideViewProps) {
             </Btn>
           </>
         )}
-      </div>
+      </Section>
     </div>
   )
 }

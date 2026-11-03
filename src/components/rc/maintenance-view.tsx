@@ -6,8 +6,6 @@ import { ArrowUpRight, Check, MapPin, Plus, Wrench } from 'lucide-react'
 import type { ComponentDTO, RecordDTO, VehicleDTO } from '@/lib/state'
 import {
   formatKm,
-  formatMonthYear,
-  statusLabel,
   statusOrder,
   type ComponentStatus,
 } from '@/lib/status'
@@ -50,6 +48,11 @@ const fade = {
 /** ProgressBar hanya menerima tone grafis — petakan status ke warna batang */
 function barTone(s: ComponentStatus): 'lime' | 'amber' | 'red' {
   return s === 'ganti' ? 'red' : s === 'segera' ? 'amber' : 'lime'
+}
+
+/** Label pendek untuk pill mini di kartu grid */
+function shortLabel(s: ComponentStatus): string {
+  return s === 'ganti' ? 'Ganti' : s === 'segera' ? 'Segera' : 'Sehat'
 }
 
 export function MaintenanceView({
@@ -140,7 +143,7 @@ export function MaintenanceView({
         )}
       </motion.div>
 
-      {/* Komponen terpasang */}
+      {/* Komponen terpasang — grid dashboard */}
       <motion.section {...fade}>
         <SectionTitle title="Komponen Terpasang" />
         {sorted.length === 0 ? (
@@ -150,7 +153,7 @@ export function MaintenanceView({
             desc="Pasang komponen dari katalog di bawah untuk mulai memantau kondisinya."
           />
         ) : (
-          <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
             {sorted.map((c, i) => {
               const h = c.health
               const selected = selectedIds.has(c.id)
@@ -158,31 +161,20 @@ export function MaintenanceView({
                 <motion.div
                   key={c.id}
                   {...fade}
-                  transition={{ ...fade.transition, delay: Math.min(i * 0.05, 0.25) }}
+                  transition={{ ...fade.transition, delay: Math.min(i * 0.04, 0.2) }}
+                  className="h-full"
                 >
-                  <Card padded={false} className={cn('p-4', selectMode && selected && 'border-lime')}>
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => (selectMode ? onToggleSelect(c) : onOpenDetail(c.id))}
-                        aria-label={`Detail ${c.name}`}
-                        className="press flex min-w-0 flex-1 items-center gap-3 rounded-2xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      >
-                        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-muted text-foreground">
-                          <ComponentIcon icon={c.icon} size={22} />
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="flex items-center gap-2">
-                            <span className="truncate text-sm font-bold text-foreground">{c.name}</span>
-                            <Pill tone={statusTone(h.status)}>{statusLabel(h.status)}</Pill>
-                          </span>
-                          <span className="mt-1 block truncate text-[12px] text-muted-foreground">
-                            {h.kmRemaining > 0
-                              ? `Sisa ${formatKm(h.kmRemaining)} km · Est. ${formatMonthYear(h.estDate)}`
-                              : 'Sudah jatuh tempo'}
-                          </span>
-                        </span>
-                      </button>
+                  <Card
+                    padded={false}
+                    className={cn(
+                      'flex h-full flex-col p-4',
+                      selectMode && selected && 'border-lime bg-lime/5'
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted text-foreground">
+                        <ComponentIcon icon={c.icon} size={19} />
+                      </span>
                       {selectMode ? (
                         <span
                           className={cn(
@@ -193,19 +185,43 @@ export function MaintenanceView({
                           {selected && <Check size={14} strokeWidth={3} />}
                         </span>
                       ) : (
-                        <IconBtn
-                          label="Catat servis"
-                          tone="ghost"
-                          className="h-9 w-9"
-                          onClick={() => onOpenService(c)}
-                        >
-                          <Wrench size={16} />
-                        </IconBtn>
+                        <Pill tone={statusTone(h.status)} className="px-2.5 text-[10px]">
+                          {shortLabel(h.status)}
+                        </Pill>
                       )}
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => (selectMode ? onToggleSelect(c) : onOpenDetail(c.id))}
+                      aria-label={`Detail ${c.name}`}
+                      className="press mt-3 min-w-0 flex-1 rounded-xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <span className="block truncate text-[13px] font-bold text-foreground">
+                        {c.name}
+                      </span>
+                      <span
+                        className={cn(
+                          'mt-0.5 block truncate text-[11px] font-semibold',
+                          h.kmRemaining > 0 ? 'text-muted-foreground' : 'text-danger'
+                        )}
+                      >
+                        {h.kmRemaining > 0
+                          ? `Sisa ${formatKm(h.kmRemaining)} km`
+                          : 'Sudah jatuh tempo'}
+                      </span>
+                    </button>
                     <div className="mt-3">
                       <ProgressBar pct={h.worstPct} tone={barTone(h.status)} />
                     </div>
+                    {!selectMode && (
+                      <button
+                        type="button"
+                        onClick={() => onOpenService(c)}
+                        className="press mt-2.5 inline-flex min-h-8 w-full items-center justify-center gap-1 rounded-full border border-border/70 text-[11px] font-bold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      >
+                        <Wrench size={12} /> Catat Servis
+                      </button>
+                    )}
                   </Card>
                 </motion.div>
               )
@@ -214,27 +230,29 @@ export function MaintenanceView({
         )}
       </motion.section>
 
-      {/* Katalog — belum terpasang */}
+      {/* Katalog — belum terpasang (grid) */}
       {catalog.length > 0 && (
         <motion.section {...fade}>
           <SectionTitle title="Katalog Komponen" />
-          <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-3">
             {catalog.map((c) => (
-              <Card key={c.id} padded={false} className="flex items-center justify-between gap-3 p-3">
-                <div className="flex min-w-0 items-center gap-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted text-foreground">
-                    <ComponentIcon icon={c.icon} size={18} />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-bold text-foreground">{c.name}</p>
-                    <p className="text-[11px] font-semibold text-muted-foreground">
-                      {formatKm(c.intervalKm)} km / {Math.round(c.intervalDays / 30)} bln
-                    </p>
-                  </div>
+              <Card key={c.id} padded={false} className="flex h-full flex-col p-4">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted text-foreground">
+                  <ComponentIcon icon={c.icon} size={19} />
+                </span>
+                <div className="mt-2.5 min-w-0 flex-1">
+                  <p className="truncate text-[13px] font-bold text-foreground">{c.name}</p>
+                  <p className="mt-0.5 text-[11px] font-semibold text-muted-foreground">
+                    {formatKm(c.intervalKm)} km / {Math.round(c.intervalDays / 30)} bln
+                  </p>
                 </div>
-                <IconBtn label="Pasang" tone="lime" className="h-9 w-9" onClick={() => onInstall(c)}>
-                  <Plus size={16} />
-                </IconBtn>
+                <button
+                  type="button"
+                  onClick={() => onInstall(c)}
+                  className="press mt-2.5 inline-flex min-h-8 w-full items-center justify-center gap-1 rounded-full bg-lime text-[11px] font-bold text-on-lime transition-[filter] hover:brightness-105"
+                >
+                  <Plus size={13} strokeWidth={2.6} /> Pasang
+                </button>
               </Card>
             ))}
           </div>

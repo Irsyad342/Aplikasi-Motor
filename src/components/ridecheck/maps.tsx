@@ -99,13 +99,11 @@ export function LiveTripMap({
   path,
   current,
   heading,
-  simMode,
   className,
 }: {
   path: [number, number][]
   current: [number, number] | null
   heading: number
-  simMode: boolean
   className?: string
 }) {
   const holder = useRef<HTMLDivElement>(null)
@@ -207,11 +205,6 @@ export function LiveTripMap({
     <div className={cn('relative overflow-hidden rounded-3xl shadow-sm', className)}>
       <style>{RC_PING_CSS}</style>
       <div ref={holder} className="h-full w-full" aria-label="Peta perjalanan live" />
-      {simMode && (
-        <div className="absolute left-3 top-3 z-[500] rounded-full bg-amber-400/95 px-3 py-1.5 text-[10px] font-bold text-amber-950 shadow">
-          MODE SIMULASI
-        </div>
-      )}
       <button
         type="button"
         onClick={recenter}

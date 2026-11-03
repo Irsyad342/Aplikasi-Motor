@@ -15,9 +15,9 @@ import {
   Wrench,
   X,
 } from 'lucide-react'
-import type { AppState, ComponentDTO, ExpenseDTO, VehicleDTO } from '@/lib/state'
+import type { AppState, ComponentDTO, ExpenseDTO, TripDTO, VehicleDTO } from '@/lib/state'
 import { BENGKEL_LIST } from '@/lib/bengkel'
-import { bearingDeg, haversineKm, DEFAULT_LOCATION, type LatLng } from '@/lib/geo'
+import { bearingDeg, haversineKm, type LatLng } from '@/lib/geo'
 import { useLocation } from '@/lib/use-location'
 import { statusLabel } from '@/lib/status'
 import { BottomNav, type View } from '@/components/rc/nav'
@@ -57,51 +57,6 @@ async function api<T = unknown>(path: string, method: string, body?: unknown): P
     throw new Error((err as { error?: string }).error || 'Terjadi kesalahan')
   }
   return res.json() as Promise<T>
-}
-
-interface SimState {
-  seg: number
-  frac: number
-  speed: number
-}
-
-/** Rute simulasi LOOP di sekitar posisi pengguna (bukan rute tetap). */
-function makeSimRoute(center: LatLng): [number, number][] {
-  const route: [number, number][] = []
-  const points = 16
-  const radii = [0.42, 0.48, 0.4, 0.34, 0.3, 0.32, 0.38, 0.46, 0.5, 0.42, 0.36, 0.3, 0.28, 0.34, 0.4, 0.46]
-  for (let i = 0; i < points; i++) {
-    const ang = (i / points) * Math.PI * 2
-    const radKm = radii[i]
-    const dLat = (radKm / 111.32) * Math.cos(ang)
-    const dLng =
-      (radKm / (111.32 * Math.max(0.2, Math.cos((center.lat * Math.PI) / 180)))) * Math.sin(ang)
-    route.push([center.lat + dLat, center.lng + dLng])
-  }
-  route.push([route[0][0], route[0][1]])
-  return route
-}
-
-function advanceSim(route: [number, number][], sp: SimState, stepKm: number): LatLng {
-  let from = route[sp.seg]
-  let to = route[(sp.seg + 1) % route.length]
-  let segLen = Math.max(0.02, haversineKm({ lat: from[0], lng: from[1] }, { lat: to[0], lng: to[1] }))
-  let remain = stepKm
-  while (remain > 0) {
-    const remainSeg = (1 - sp.frac) * segLen
-    if (remain < remainSeg) {
-      sp.frac += remain / segLen
-      remain = 0
-    } else {
-      remain -= remainSeg
-      sp.seg = (sp.seg + 1) % route.length
-      sp.frac = 0
-      from = route[sp.seg]
-      to = route[(sp.seg + 1) % route.length]
-      segLen = Math.max(0.02, haversineKm({ lat: from[0], lng: from[1] }, { lat: to[0], lng: to[1] }))
-    }
-  }
-  return { lat: from[0] + (to[0] - from[0]) * sp.frac, lng: from[1] + (to[1] - from[1]) * sp.frac }
 }
 
 function greeting(): string {
@@ -173,23 +128,17 @@ export default function Home() {
   const [autoTrack, setAutoTrack] = useState(false)
   const [reminder, setReminder] = useState(true)
 
-  // Tracking
+  // Tracking — 100% GPS asli, tanpa mode simulasi. GPS wajib aktif untuk merekam.
   const [tracking, setTracking] = useState<TrackingState | null>(null)
   const watchRef = useRef<number | null>(null)
   const lastPosRef = useRef<LatLng | null>(null)
-  const simRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const simStateRef = useRef<SimState | null>(null)
-  const simRouteRef = useRef<[number, number][]>([])
-  const simPrevRef = useRef<LatLng | null>(null)
   const pathRef = useRef<[number, number][]>([])
   const headingRef = useRef(0)
   const [livePath, setLivePath] = useState<[number, number][]>([])
   const [currentPos, setCurrentPos] = useState<[number, number] | null>(null)
   const [heading, setHeading] = useState(0)
   const [, setTick] = useState(0)
-  const [locMode, setLocMode] = useState<'waiting' | 'gps' | 'sim'>('waiting')
-  const gpsModeRef = useRef<'waiting' | 'gps' | 'sim'>('waiting')
-  const pendingSimRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [locMode, setLocMode] = useState<'waiting' | 'gps'>('waiting')
 
   // ---------- Data ----------
   const loadState = useCallback(async (id?: string) => {
@@ -261,138 +210,105 @@ export default function Home() {
 
   const vehicle = state?.vehicle ?? null
 
-  // ---------- Tracking (logika asli dipertahankan) ----------
-  const clearSimPending = useCallback(() => {
-    if (pendingSimRef.current) {
-      clearTimeout(pendingSimRef.current)
-      pendingSimRef.current = null
-    }
-  }, [])
-
+  // ---------- Tracking — hanya GPS asli, tanpa simulasi ----------
   const stopTrackingSensors = useCallback(() => {
     if (watchRef.current !== null && typeof navigator !== 'undefined' && navigator.geolocation) {
       navigator.geolocation.clearWatch(watchRef.current)
       watchRef.current = null
     }
-    if (simRef.current) {
-      clearInterval(simRef.current)
-      simRef.current = null
-    }
-    clearSimPending()
-  }, [clearSimPending])
+  }, [])
 
-  const startSimEngine = useCallback(() => {
-    if (simRef.current) return
-    gpsModeRef.current = 'sim'
-    setLocMode('sim')
-    simRef.current = setInterval(() => {
-      const sp = simStateRef.current
-      if (!sp || lastPosRef.current) return
-      sp.speed = Math.min(38, Math.max(16, sp.speed + (Math.random() - 0.5) * 6))
-      const stepKm = sp.speed / 3600
-      const cur = advanceSim(simRouteRef.current, sp, stepKm)
-      const prevSim = simPrevRef.current
-      simPrevRef.current = cur
-      const d = prevSim ? haversineKm(prevSim, cur) : 0
-      if (d > 0.0005) {
-        const prev = pathRef.current[pathRef.current.length - 1]
-        if (prev) {
-          headingRef.current = bearingDeg({ lat: prev[0], lng: prev[1] }, cur)
-          setHeading(headingRef.current)
-        }
-        pathRef.current = [...pathRef.current, [cur.lat, cur.lng] as [number, number]]
-        setLivePath(pathRef.current)
-        setTracking((p) => (p ? { ...p, distance: p.distance + d } : p))
-      }
-      setCurrentPos([cur.lat, cur.lng])
-    }, 1000)
+  const abortTrackingUi = useCallback(() => {
+    setTracking(null)
+    setLivePath([])
+    setCurrentPos(null)
+    setHeading(0)
+    setLocMode('waiting')
   }, [])
 
   const startTracking = useCallback(() => {
+    // GPS wajib aktif — tanpa GPS fitur rekam tidak bisa dipakai
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      toast.error('Perangkat tidak mendukung GPS — nyalakan layanan lokasi dulu')
+      return
+    }
+    if (loc.status === 'denied') {
+      toast.error('Izin lokasi belum diberikan — nyalakan GPS dulu untuk merekam perjalanan')
+      return
+    }
     stopTrackingSensors()
     lastPosRef.current = null
     pathRef.current = []
     headingRef.current = 0
-    simPrevRef.current = null
-    simStateRef.current = { seg: 0, frac: 0, speed: 24 }
-    gpsModeRef.current = 'waiting'
     setLocMode('waiting')
-    const base = loc.pos ?? DEFAULT_LOCATION
-    simRouteRef.current = makeSimRoute(base)
     if (loc.pos) {
-      pathRef.current = [[base.lat, base.lng]]
+      pathRef.current = [[loc.pos.lat, loc.pos.lng]]
       setLivePath(pathRef.current)
-      setCurrentPos([base.lat, base.lng])
+      setCurrentPos([loc.pos.lat, loc.pos.lng])
     } else {
       setLivePath([])
       setCurrentPos(null)
     }
     setTracking({ startedAt: Date.now(), distance: 0, geoFixes: 0 })
 
-    if (typeof navigator !== 'undefined' && navigator.geolocation) {
-      watchRef.current = navigator.geolocation.watchPosition(
-        (pos) => {
-          const cur = { lat: pos.coords.latitude, lng: pos.coords.longitude }
-          if (!Number.isFinite(cur.lat) || !Number.isFinite(cur.lng)) return
-          if (lastPosRef.current === null) {
-            gpsModeRef.current = 'gps'
-            setLocMode('gps')
-            clearSimPending()
-            if (simRef.current) {
-              clearInterval(simRef.current)
-              simRef.current = null
-            }
-            pathRef.current = [[cur.lat, cur.lng]]
-            setLivePath(pathRef.current)
-            setCurrentPos([cur.lat, cur.lng])
-            lastPosRef.current = cur
-            setTracking((prev) => (prev ? { ...prev, distance: 0, geoFixes: 1 } : prev))
-            return
-          }
-          const last = lastPosRef.current
-          lastPosRef.current = cur
+    watchRef.current = navigator.geolocation.watchPosition(
+      (pos) => {
+        const cur = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+        if (!Number.isFinite(cur.lat) || !Number.isFinite(cur.lng)) return
+        if (lastPosRef.current === null) {
+          setLocMode('gps')
+          pathRef.current = [[cur.lat, cur.lng]]
+          setLivePath(pathRef.current)
           setCurrentPos([cur.lat, cur.lng])
-          const acc = typeof pos.coords.accuracy === 'number' ? pos.coords.accuracy : 0
-          const d = haversineKm(last, cur)
-          if (acc > 100 || d >= 1) return
-          if (d > 0.003) {
-            headingRef.current = bearingDeg(last, cur)
-            setHeading(headingRef.current)
-            if (pathRef.current.length < 2500) {
-              pathRef.current = [...pathRef.current, [cur.lat, cur.lng] as [number, number]]
-              setLivePath(pathRef.current)
-            }
-            setTracking((prev) =>
-              prev ? { ...prev, distance: prev.distance + d, geoFixes: prev.geoFixes + 1 } : prev
-            )
+          lastPosRef.current = cur
+          setTracking((prev) => (prev ? { ...prev, distance: 0, geoFixes: 1 } : prev))
+          return
+        }
+        const last = lastPosRef.current
+        lastPosRef.current = cur
+        setCurrentPos([cur.lat, cur.lng])
+        const acc = typeof pos.coords.accuracy === 'number' ? pos.coords.accuracy : 0
+        const d = haversineKm(last, cur)
+        if (acc > 100 || d >= 1) return
+        if (d > 0.003) {
+          headingRef.current = bearingDeg(last, cur)
+          setHeading(headingRef.current)
+          if (pathRef.current.length < 2500) {
+            pathRef.current = [...pathRef.current, [cur.lat, cur.lng] as [number, number]]
+            setLivePath(pathRef.current)
           }
-        },
-        (err) => {
-          if (err.code === err.PERMISSION_DENIED || err.code === err.POSITION_UNAVAILABLE) {
-            clearSimPending()
-            startSimEngine()
-            toast.info('GPS tidak tersedia — mode simulasi diaktifkan')
-          }
-        },
-        { enableHighAccuracy: true, maximumAge: 2000, timeout: 8000 }
-      )
-    }
+          setTracking((prev) =>
+            prev ? { ...prev, distance: prev.distance + d, geoFixes: prev.geoFixes + 1 } : prev
+          )
+        }
+      },
+      (err) => {
+        // Izin dicabut di tengah rekam → hentikan. Error lain (GPS hilang sesaat)
+        // tidak menghentikan watch — biarkan mencari sinyal lagi.
+        if (err.code === err.PERMISSION_DENIED) {
+          stopTrackingSensors()
+          abortTrackingUi()
+          toast.error('Akses lokasi dimatikan — rekaman dihentikan')
+        }
+      },
+      { enableHighAccuracy: true, maximumAge: 2000, timeout: 8000 }
+    )
 
-    pendingSimRef.current = setTimeout(() => {
-      pendingSimRef.current = null
-      if (gpsModeRef.current === 'waiting') startSimEngine()
-    }, 15000)
-
-    toast.success('Perekaman perjalanan dimulai')
-  }, [loc.pos, stopTrackingSensors, startSimEngine, clearSimPending])
+    toast.success('Mencari sinyal GPS — perekaman dimulai')
+  }, [loc.pos, loc.status, stopTrackingSensors, abortTrackingUi])
 
   const finishTracking = useCallback(async () => {
     if (!tracking || !vehicle) return
     stopTrackingSensors()
-    gpsModeRef.current = 'waiting'
     setLocMode('waiting')
     const duration = Math.max(1, Math.round((Date.now() - tracking.startedAt) / 1000))
     const distance = Math.round(tracking.distance * 100) / 100
+    // Tanpa satu pun titik GPS = tidak ada data nyata → jangan simpan perjalanan kosong
+    if (tracking.geoFixes === 0 || distance < 0.01) {
+      abortTrackingUi()
+      toast.error('Belum ada data GPS — perjalanan tidak disimpan. Nyalakan GPS lalu coba lagi.')
+      return
+    }
     const pathJson = pathRef.current.length >= 2 ? JSON.stringify(pathRef.current) : null
     try {
       await api('/api/trips', 'POST', {
@@ -409,10 +325,8 @@ export default function Home() {
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Gagal menyimpan perjalanan')
     }
-    setTracking(null)
-    setLivePath([])
-    setCurrentPos(null)
-  }, [tracking, vehicle, autoTrack, loadState, stopTrackingSensors])
+    abortTrackingUi()
+  }, [tracking, vehicle, autoTrack, loadState, stopTrackingSensors, abortTrackingUi])
 
   useEffect(() => () => stopTrackingSensors(), [stopTrackingSensors])
 
@@ -1449,13 +1363,8 @@ function ManualTripSheet({
   )
 }
 
-/** Preset pengisian bensin berdasarkan kapasitas tangki (dapat diatur pengguna). */
-const FUEL_PRESETS: Array<{ frac: number; label: string }> = [
-  { frac: 0.25, label: '¼ Tangki' },
-  { frac: 0.5, label: '½ Tangki' },
-  { frac: 0.75, label: '¾ Tangki' },
-  { frac: 1, label: 'Full Tank' },
-]
+/** Kapasitas tangki default (dapat diatur pengguna, tersimpan di perangkat). */
+const DEFAULT_TANK_L = 5
 
 function ExpenseSheet({
   open,
@@ -1492,12 +1401,10 @@ function ExpenseSheet({
     }
   }, [open])
 
-  const tankL = Math.max(1, Math.min(30, Number(tank) || 5))
+  const tankL = Math.max(1, Math.min(30, Number(tank) || DEFAULT_TANK_L))
 
-  const applyPreset = (frac: number) => {
-    const l = Math.round(tankL * frac * 100) / 100
-    setLiters(String(l))
-  }
+  // Tombol liter bulat 1..kapasitas tangki — tanpa pecahan (1, 2, 3, 4, 5 L)
+  const literOptions = Array.from({ length: tankL }, (_, i) => i + 1)
 
   const submit = () => {
     const amt = Math.round(Number(amount) || 0)
@@ -1558,24 +1465,22 @@ function ExpenseSheet({
 
         {category === 'bensin' && (
           <>
-            <Field label="Berapa liter?" hint={`Kapasitas tangki motor kamu ${tankL.toLocaleString('id-ID')} liter — bisa diubah di bawah`}>
-              <div className="grid grid-cols-4 gap-2">
-                {FUEL_PRESETS.map((p) => {
-                  const l = Math.round(tankL * p.frac * 100) / 100
-                  const active = ltrNum === l
+            <Field label="Berapa liter?" hint={`Tombol menyesuaikan kapasitas tangki (${tankL} L) — bisa diubah di bawah`}>
+              <div className="grid grid-cols-5 gap-2">
+                {literOptions.map((n) => {
+                  const active = ltrNum === n
                   return (
                     <button
-                      key={p.label}
+                      key={n}
                       type="button"
-                      onClick={() => applyPreset(p.frac)}
-                      className={`press flex min-h-11 flex-col items-center justify-center rounded-2xl border px-1 leading-tight ${
+                      onClick={() => setLiters(String(n))}
+                      className={`press flex min-h-11 items-center justify-center rounded-2xl border text-sm font-bold ${
                         active
                           ? 'border-lime bg-lime text-on-lime'
                           : 'border-input bg-card text-muted-foreground'
                       }`}
                     >
-                      <span className="text-[11px] font-bold">{p.label}</span>
-                      <span className="text-[10px] font-semibold opacity-70">{l.toLocaleString('id-ID')} L</span>
+                      {n} L
                     </button>
                   )
                 })}
@@ -1585,10 +1490,10 @@ function ExpenseSheet({
               <Field label="Liter">
                 <input
                   className={inputCls}
-                  inputMode="decimal"
+                  inputMode="numeric"
                   value={liters}
-                  onChange={(e) => setLiters(e.target.value.replace(/[^\d.,]/g, '').replace(',', '.'))}
-                  placeholder="cth. 2,5"
+                  onChange={(e) => setLiters(e.target.value.replace(/[^\d]/g, ''))}
+                  placeholder="cth. 3"
                 />
               </Field>
               <Field label="Kapasitas tangki (L)">
