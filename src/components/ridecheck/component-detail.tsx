@@ -213,6 +213,15 @@ export function ComponentDetail({
                   </p>
                   <span className="text-lg font-bold text-foreground">{formatPct(kmPctLive)}</span>
                 </div>
+                {component.intervalKm > 0 && (
+                  <p className="mt-1 text-[12px] font-semibold text-muted-foreground">
+                    Terpakai{' '}
+                    <span className="font-bold text-foreground">
+                      {formatKm(Math.min(component.intervalKm, Math.max(0, vehicle.odometer - component.lastServiceOdo)))} km
+                    </span>{' '}
+                    dari {formatKm(component.intervalKm)} km — bertambah otomatis seiring odometer naik
+                  </p>
+                )}
 
                 {showAdjust && (
                   <>

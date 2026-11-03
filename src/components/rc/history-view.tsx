@@ -15,6 +15,7 @@ import {
   CircleDollarSign,
   Fuel,
   MoreHorizontal,
+  Pencil,
   Route,
   SquareParking,
   Trash2,
@@ -38,6 +39,7 @@ import {
 } from '@/components/rc/ui'
 import { ComponentIcon } from '@/components/ridecheck/icons'
 import { cn } from '@/lib/utils'
+import { EditExpenseSheet, EditRecordSheet, EditTripSheet } from '@/components/rc/history-edit-sheets'
 
 export interface HistoryViewProps {
   vehicle: VehicleDTO
@@ -48,6 +50,17 @@ export interface HistoryViewProps {
   onBack: () => void
   onOpenDetail: (id: string) => void
   onDeleteExpense: (id: string) => void
+  onDeleteTrip: (id: string) => void
+  onDeleteRecord: (id: string) => void
+  onEditTrip: (id: string, data: { distance: number; date: string }) => Promise<void>
+  onEditExpense: (
+    id: string,
+    data: { category: string; amount: number; liters?: number | null; note: string; date: string }
+  ) => Promise<void>
+  onEditRecord: (
+    id: string,
+    data: { type: string; odometer: number; date: string; cost: number | null; workshop: string; note: string }
+  ) => Promise<void>
 }
 
 type Tab = 'perawatan' | 'perjalanan' | 'biaya'
@@ -175,9 +188,19 @@ export function HistoryView({
   onBack,
   onOpenDetail,
   onDeleteExpense,
+  onDeleteTrip,
+  onDeleteRecord,
+  onEditTrip,
+  onEditExpense,
+  onEditRecord,
 }: HistoryViewProps) {
   const [tab, setTab] = useState<Tab>('perawatan')
   const months = useMemo(() => lastMonths(6), [])
+
+  // Entri yang sedang diedit lewat sheet
+  const [editTrip, setEditTrip] = useState<TripDTO | null>(null)
+  const [editExpense, setEditExpense] = useState<ExpenseDTO | null>(null)
+  const [editRecord, setEditRecord] = useState<RecordDTO | null>(null)
 
   const sortedRecords = useMemo(
     () => [...records].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
@@ -454,7 +477,7 @@ export function HistoryView({
               ) : (
                 <div className="space-y-2.5">
                   {sortedRecords.map((r) => (
-                    <Card key={r.id} onClick={() => onOpenDetail(r.componentId)} className="p-4">
+                    <Card key={r.id} className="p-4">
                       <div className="flex items-start gap-3">
                         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
                           <ComponentIcon icon={r.componentIcon} size={18} />
@@ -473,14 +496,37 @@ export function HistoryView({
                             </p>
                           )}
                         </div>
-                        <div className="shrink-0 text-right">
-                          {r.cost != null ? (
+                        <div className="flex shrink-0 flex-col items-end gap-1">
+                          {r.cost != null && (
                             <p className="stat-num text-[15px] text-foreground">
                               Rp{formatRupiah(r.cost)}
                             </p>
-                          ) : (
-                            <Pill tone="outline">{r.type === 'ganti' ? 'Ganti' : 'Servis'}</Pill>
                           )}
+                          <div className="flex items-center gap-1">
+                            <IconBtn
+                              label={`Edit catatan ${r.componentName}`}
+                              tone="ghost"
+                              className="h-8 w-8 hover:text-foreground"
+                              onClick={() => setEditRecord(r)}
+                            >
+                              <Pencil size={15} />
+                            </IconBtn>
+                            <IconBtn
+                              label={`Hapus catatan ${r.componentName}`}
+                              tone="ghost"
+                              className="h-8 w-8 hover:text-danger"
+                              onClick={() => {
+                                if (
+                                  window.confirm(
+                                    `Hapus catatan ${r.type === 'ganti' ? 'penggantian' : 'servis'} ${r.componentName}? Sisa pakai komponen akan disesuaikan otomatis.`
+                                  )
+                                )
+                                  onDeleteRecord(r.id)
+                              }}
+                            >
+                              <Trash2 size={15} />
+                            </IconBtn>
+                          </div>
                         </div>
                       </div>
                     </Card>
@@ -556,6 +602,31 @@ export function HistoryView({
                           {formatKm1(t.distance)}
                           <span className="ml-1 text-[11px] font-bold text-muted-foreground">km</span>
                         </p>
+                        <div className="flex shrink-0 items-center">
+                          <IconBtn
+                            label="Edit perjalanan"
+                            tone="ghost"
+                            className="h-8 w-8 hover:text-foreground"
+                            onClick={() => setEditTrip(t)}
+                          >
+                            <Pencil size={15} />
+                          </IconBtn>
+                          <IconBtn
+                            label="Hapus perjalanan"
+                            tone="ghost"
+                            className="h-8 w-8 hover:text-danger"
+                            onClick={() => {
+                              if (
+                                window.confirm(
+                                  `Hapus perjalanan ${formatKm1(t.distance)} km tanggal ${formatDate(t.startedAt)}? Odometer akan dikembalikan otomatis.`
+                                )
+                              )
+                                onDeleteTrip(t.id)
+                            }}
+                          >
+                            <Trash2 size={15} />
+                          </IconBtn>
+                        </div>
                       </div>
                     </Card>
                   ))}
@@ -639,16 +710,26 @@ export function HistoryView({
                         <p className="stat-num shrink-0 text-[15px] text-foreground">
                           Rp{formatRupiah(e.amount)}
                         </p>
-                        <IconBtn
-                          label="Hapus pengeluaran"
-                          tone="ghost"
-                          className="h-9 w-9 hover:text-danger"
-                          onClick={() => {
-                            if (window.confirm('Hapus pengeluaran ini?')) onDeleteExpense(e.id)
-                          }}
-                        >
-                          <Trash2 size={16} />
-                        </IconBtn>
+                        <div className="flex shrink-0 items-center">
+                          <IconBtn
+                            label="Edit pengeluaran"
+                            tone="ghost"
+                            className="h-8 w-8 hover:text-foreground"
+                            onClick={() => setEditExpense(e)}
+                          >
+                            <Pencil size={15} />
+                          </IconBtn>
+                          <IconBtn
+                            label="Hapus pengeluaran"
+                            tone="ghost"
+                            className="h-8 w-8 hover:text-danger"
+                            onClick={() => {
+                              if (window.confirm('Hapus pengeluaran ini?')) onDeleteExpense(e.id)
+                            }}
+                          >
+                            <Trash2 size={15} />
+                          </IconBtn>
+                        </div>
                       </div>
                     </Card>
                   ))}
@@ -658,6 +739,26 @@ export function HistoryView({
           </FadeUp>
         </div>
       )}
+
+      {/* ---------- Sheet edit riwayat ---------- */}
+      <EditTripSheet
+        open={editTrip !== null}
+        trip={editTrip}
+        onClose={() => setEditTrip(null)}
+        onSubmit={onEditTrip}
+      />
+      <EditExpenseSheet
+        open={editExpense !== null}
+        expense={editExpense}
+        onClose={() => setEditExpense(null)}
+        onSubmit={onEditExpense}
+      />
+      <EditRecordSheet
+        open={editRecord !== null}
+        record={editRecord}
+        onClose={() => setEditRecord(null)}
+        onSubmit={onEditRecord}
+      />
     </div>
   )
 }

@@ -440,19 +440,71 @@ export default function Home() {
   const deleteTrip = useCallback(
     (id: string) => {
       const prev = state
-      // Hapus optimis — daftar langsung diperbarui tanpa menunggu server
+      // Hapus optimis — daftar langsung diperbarui tanpa menunggu server.
+      // Server juga mengembalikan odometer sesuai jarak trip (sisa pakai ikut pulih).
       setState((s) => (s ? { ...s, trips: s.trips.filter((t) => t.id !== id) } : s))
       void (async () => {
         try {
           await api(`/api/trips/${id}`, 'DELETE')
-          toast.success('Perjalanan dihapus')
+          if (vehicle) await loadState(vehicle.id)
+          toast.success('Perjalanan dihapus — odometer disesuaikan')
         } catch (e) {
           setState(prev) // gagal → kembalikan seperti semula
           toast.error(e instanceof Error ? e.message : 'Gagal menghapus perjalanan')
         }
       })()
     },
-    [state]
+    [state, vehicle, loadState]
+  )
+
+  const editTrip = useCallback(
+    async (id: string, data: { distance: number; date: string }) => {
+      await api(`/api/trips/${id}`, 'PATCH', data)
+      await loadState(vehicleId ?? undefined)
+      toast.success('Perjalanan diperbarui — odometer disesuaikan')
+    },
+    [loadState, vehicleId]
+  )
+
+  const editExpense = useCallback(
+    async (
+      id: string,
+      data: { category: string; amount: number; liters?: number | null; note: string; date: string }
+    ) => {
+      await api(`/api/expenses/${id}`, 'PATCH', data)
+      await loadState(vehicleId ?? undefined)
+      toast.success('Pengeluaran diperbarui')
+    },
+    [loadState, vehicleId]
+  )
+
+  const deleteRecord = useCallback(
+    async (id: string) => {
+      const prev = state
+      // Hapus optimis — daftar langsung diperbarui
+      setState((s) => (s ? { ...s, records: s.records.filter((r) => r.id !== id) } : s))
+      try {
+        await api(`/api/records/${id}`, 'DELETE')
+        await loadState(vehicleId ?? undefined)
+        toast.success('Catatan dihapus — sisa pakai komponen disesuaikan')
+      } catch (e) {
+        setState(prev)
+        toast.error(e instanceof Error ? e.message : 'Gagal menghapus catatan')
+      }
+    },
+    [state, loadState, vehicleId]
+  )
+
+  const editRecord = useCallback(
+    async (
+      id: string,
+      data: { type: string; odometer: number; date: string; cost: number | null; workshop: string; note: string }
+    ) => {
+      await api(`/api/records/${id}`, 'PATCH', data)
+      await loadState(vehicleId ?? undefined)
+      toast.success('Catatan servis diperbarui')
+    },
+    [loadState, vehicleId]
   )
 
   const addManualTrip = useCallback(
@@ -844,6 +896,11 @@ export default function Home() {
                   onBack={() => setView('home')}
                   onOpenDetail={setOpenDetailId}
                   onDeleteExpense={deleteExpense}
+                  onDeleteTrip={deleteTrip}
+                  onDeleteRecord={deleteRecord}
+                  onEditTrip={editTrip}
+                  onEditExpense={editExpense}
+                  onEditRecord={editRecord}
                 />
               )}
 
