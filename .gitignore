@@ -62,3 +62,4 @@ server.log
 /mini-services/
 /Caddyfile
 /worklog.md
+tool-results/
