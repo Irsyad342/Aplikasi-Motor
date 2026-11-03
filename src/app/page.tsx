@@ -811,10 +811,8 @@ export default function Home() {
                   selectedIds={selectedIds}
                   onToggleSelect={toggleSelectComponent}
                   onToggleSelectMode={() => {
-                    setSelectMode((s) => {
-                      if (s) setSelectedIds(new Set())
-                      return !s
-                    })
+                    if (selectMode) setSelectedIds(new Set())
+                    setSelectMode(!selectMode)
                   }}
                   onMarkSelected={markSelectedGanti}
                 />

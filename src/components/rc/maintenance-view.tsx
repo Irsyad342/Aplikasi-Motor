@@ -55,6 +55,32 @@ function shortLabel(s: ComponentStatus): string {
   return s === 'ganti' ? 'Ganti' : s === 'segera' ? 'Segera' : 'Sehat'
 }
 
+/** Kartu indikator putih kecil di dalam panel lime — angka + titik status.
+    Warna teks statis (tinta gelap) karena latar tile putih di kedua tema. */
+function IndicatorTile({
+  label,
+  value,
+  dot,
+}: {
+  label: string
+  value: number
+  dot: 'sehat' | 'segera' | 'ganti'
+}) {
+  const dotCls =
+    dot === 'ganti' ? 'bg-[#ff4d3d]' : dot === 'segera' ? 'bg-[#e8a317]' : 'bg-[#a4cc0d]'
+  return (
+    <div className="min-w-0 rounded-[18px] bg-white px-2.5 py-2.5 shadow-[0_1px_2px_rgba(16,17,16,0.08)]">
+      <span className="flex items-center gap-1">
+        <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', dotCls)} aria-hidden="true" />
+        <span className="truncate text-[9px] font-bold uppercase tracking-[0.04em] text-[#63655f]">
+          {label}
+        </span>
+      </span>
+      <span className="stat-num mt-1 block text-[22px] leading-none text-[#101110]">{value}</span>
+    </div>
+  )
+}
+
 export function MaintenanceView({
   vehicle,
   components,
@@ -97,9 +123,6 @@ export function MaintenanceView({
     return { sehat, segera, ganti }
   }, [installed])
 
-  /** Persentase komponen sehat — dipakai kartu kondisi dashboard */
-  const healthPct = installed.length > 0 ? Math.round((counts.sehat / installed.length) * 100) : 0
-
   return (
     <div className="space-y-6">
       {/* Ringkasan */}
@@ -125,52 +148,13 @@ export function MaintenanceView({
             </span>
           </div>
 
-          {/* Kondisi komponen */}
+          {/* Indikator kondisi — tiga kartu putih, selalu tampil ketiganya */}
           {installed.length > 0 ? (
-            <>
-              <p className="mt-5 text-[11px] font-extrabold uppercase tracking-[0.08em] opacity-70">
-                Kondisi Komponen
-              </p>
-              <div className="mt-1 flex items-end justify-between gap-3">
-                <div className="flex items-end gap-2">
-                  <span className="stat-num text-[42px] leading-none">{healthPct}%</span>
-                  <span className="pb-1 text-[12px] font-bold opacity-80">sehat</span>
-                </div>
-                <span className="pb-1 text-[12px] font-bold opacity-80">
-                  {counts.sehat} dari {installed.length} komponen
-                </span>
-              </div>
-              <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-on-lime/10" role="img" aria-label={`Kondisi ${healthPct}% sehat`}>
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${healthPct}%` }}
-                  transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-                  className="h-full rounded-full bg-on-lime"
-                />
-              </div>
-
-              {/* Chip status */}
-              {counts.ganti > 0 || counts.segera > 0 ? (
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {counts.segera > 0 && (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-on-lime/10 px-3 py-1.5 text-[11px] font-extrabold leading-none">
-                      <span className="h-1.5 w-1.5 rounded-full bg-warn" aria-hidden="true" />
-                      {counts.segera} Segera
-                    </span>
-                  )}
-                  {counts.ganti > 0 && (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-on-lime px-3 py-1.5 text-[11px] font-extrabold leading-none text-lime">
-                      <span className="h-1.5 w-1.5 rounded-full bg-danger" aria-hidden="true" />
-                      {counts.ganti} Jatuh Tempo
-                    </span>
-                  )}
-                </div>
-              ) : (
-                <p className="mt-4 inline-flex items-center gap-1.5 text-[12px] font-extrabold">
-                  <Check size={15} strokeWidth={3} /> Semua komponen sehat — mantap!
-                </p>
-              )}
-            </>
+            <div className="mt-5 grid grid-cols-3 gap-2">
+              <IndicatorTile label="Sehat" value={counts.sehat} dot="sehat" />
+              <IndicatorTile label="Segera" value={counts.segera} dot="segera" />
+              <IndicatorTile label="Jatuh Tempo" value={counts.ganti} dot="ganti" />
+            </div>
           ) : (
             <p className="mt-5 text-[13px] font-bold leading-snug opacity-90">
               Belum ada komponen dipantau — pasang dari katalog di bawah untuk mulai memantau kondisi motor.
@@ -216,6 +200,9 @@ export function MaintenanceView({
                 >
                   <Card
                     padded={false}
+                    /* Mode pilih: satu kartu penuh jadi tombol — semua area bisa diklik,
+                       bukan hanya teks nama (perbaikan bug tap tidak merespons) */
+                    {...(selectMode ? { onClick: () => onToggleSelect(c) } : {})}
                     className={cn(
                       'flex h-full flex-col p-4',
                       selectMode && selected && 'border-lime bg-lime/5'
@@ -228,7 +215,7 @@ export function MaintenanceView({
                       {selectMode ? (
                         <span
                           className={cn(
-                            'flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2',
+                            'flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-colors',
                             selected ? 'border-lime bg-lime text-on-lime' : 'border-border'
                           )}
                         >
@@ -240,26 +227,44 @@ export function MaintenanceView({
                         </Pill>
                       )}
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => (selectMode ? onToggleSelect(c) : onOpenDetail(c.id))}
-                      aria-label={`Detail ${c.name}`}
-                      className="press mt-3 min-w-0 flex-1 rounded-xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      <span className="block truncate text-[13px] font-bold text-foreground">
-                        {c.name}
-                      </span>
-                      <span
-                        className={cn(
-                          'mt-0.5 block truncate text-[11px] font-semibold',
-                          h.kmRemaining > 0 ? 'text-muted-foreground' : 'text-danger'
-                        )}
+                    {selectMode ? (
+                      <div className="mt-3 min-w-0 flex-1">
+                        <span className="block truncate text-[13px] font-bold text-foreground">
+                          {c.name}
+                        </span>
+                        <span
+                          className={cn(
+                            'mt-0.5 block truncate text-[11px] font-semibold',
+                            h.kmRemaining > 0 ? 'text-muted-foreground' : 'text-danger'
+                          )}
+                        >
+                          {h.kmRemaining > 0
+                            ? `Sisa ${formatKm(h.kmRemaining)} km`
+                            : 'Sudah jatuh tempo'}
+                        </span>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => onOpenDetail(c.id)}
+                        aria-label={`Detail ${c.name}`}
+                        className="press mt-3 min-w-0 flex-1 rounded-xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       >
-                        {h.kmRemaining > 0
-                          ? `Sisa ${formatKm(h.kmRemaining)} km`
-                          : 'Sudah jatuh tempo'}
-                      </span>
-                    </button>
+                        <span className="block truncate text-[13px] font-bold text-foreground">
+                          {c.name}
+                        </span>
+                        <span
+                          className={cn(
+                            'mt-0.5 block truncate text-[11px] font-semibold',
+                            h.kmRemaining > 0 ? 'text-muted-foreground' : 'text-danger'
+                          )}
+                        >
+                          {h.kmRemaining > 0
+                            ? `Sisa ${formatKm(h.kmRemaining)} km`
+                            : 'Sudah jatuh tempo'}
+                        </span>
+                      </button>
+                    )}
                     <div className="mt-3">
                       <ProgressBar pct={h.worstPct} tone={barTone(h.status)} />
                     </div>
