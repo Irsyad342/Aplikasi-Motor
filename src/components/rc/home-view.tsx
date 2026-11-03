@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * HomeView — layar utama RideCheck (design system "Neon Lime").
+ * HomeView — layar utama MotoMate (design system "Neon Lime").
  * Semua data dihitung dari props, tanpa data dummy.
  */
 
@@ -283,7 +283,7 @@ export function HomeView({
               className={cn(
                 'press flex min-h-[76px] flex-col items-center justify-center gap-1.5 rounded-[22px] px-1 py-3',
                 primary
-                  ? 'bg-lime text-ink'
+                  ? 'bg-lime text-on-lime'
                   : 'border border-border/70 bg-card text-foreground'
               )}
             >
@@ -301,7 +301,7 @@ export function HomeView({
           <StatCard
             className="col-span-2 flex-row items-center justify-between gap-4"
             icon={
-              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-lime text-ink">
+              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-lime text-on-lime">
                 <Route size={20} />
               </span>
             }
@@ -362,7 +362,7 @@ export function HomeView({
       <Section delay={0.25}>
         <Card className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-lime text-ink">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-lime text-on-lime">
               <MapPin size={18} />
             </span>
             <div className="min-w-0">

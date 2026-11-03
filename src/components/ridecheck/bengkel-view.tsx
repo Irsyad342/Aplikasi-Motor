@@ -232,7 +232,7 @@ export function BengkelView({ onBack }: { onBack?: () => void }) {
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Cari nama bengkel atau merek…"
             aria-label="Cari bengkel di Pulau Jawa"
-            className="w-full rounded-full bg-card py-3 pl-11 pr-10 text-sm text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-ring/40"
+            className="w-full rounded-full bg-card py-3 pl-11 pr-10 text-base text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-ring/40"
           />
           {query && (
             <button
@@ -361,7 +361,7 @@ export function BengkelView({ onBack }: { onBack?: () => void }) {
               onClick={() => setRadiusKm(r)}
               className={cn(
                 'rounded-full px-2.5 py-1 text-[11px] font-bold transition-colors',
-                radiusKm === r ? 'bg-lime text-ink' : 'bg-card text-muted-foreground shadow-sm'
+                radiusKm === r ? 'bg-lime text-on-lime' : 'bg-card text-muted-foreground shadow-sm'
               )}
             >
               {r} km
@@ -562,7 +562,7 @@ function BengkelCard({
             href={gmapsDirectionUrl(b, refPoint)}
             target="_blank"
             rel="noreferrer"
-            className="flex items-center gap-1 rounded-full bg-lime px-3.5 py-1.5 text-xs font-bold text-ink active:scale-95"
+            className="flex items-center gap-1 rounded-full bg-lime px-3.5 py-1.5 text-xs font-bold text-on-lime active:scale-95"
           >
             <Navigation size={13} />
             Rute

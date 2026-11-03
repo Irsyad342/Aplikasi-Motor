@@ -261,7 +261,7 @@ function RowButton({
       <span
         className={cn(
           'flex h-9 w-9 shrink-0 items-center justify-center rounded-full',
-          accent ? 'bg-lime text-ink' : 'bg-muted text-muted-foreground'
+          accent ? 'bg-lime text-on-lime' : 'bg-muted text-muted-foreground'
         )}
       >
         {icon}

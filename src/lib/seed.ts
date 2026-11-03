@@ -8,7 +8,7 @@ const daysAgo = (n: number) => new Date(Date.now() - n * DAY)
 // Kunci advisory lock unik untuk aplikasi ini (mencegah race condition double-seed)
 const SEED_LOCK_KEY = 745861
 
-// Konfigurasi seed agar distribusi status sama seperti aplikasi RideCheck:
+// Konfigurasi seed agar distribusi status sama seperti aplikasi MotoMate:
 // 2 "Perlu diganti" (merah), 1 "Periksa Segera" (kuning), 9 "Sehat" (hijau)
 const SEED_VEHICLE = {
   name: 'Si Ganteng Ireng',

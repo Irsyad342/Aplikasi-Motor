@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * RideCheck UI Kit — design tokens "Neon Lime"
+ * MotoMate UI Kit — design tokens "Neon Lime"
  * Kartu rounded-3xl (24-28px), pill status, tombol bulat, angka statistik besar,
  * grafik minimalis beraksen lime. Semua warna lewat token tema (light/dark).
  */
@@ -95,7 +95,7 @@ export function Pill({
   className?: string
 }) {
   const tones: Record<PillTone, string> = {
-    lime: 'bg-lime text-ink',
+    lime: 'bg-lime text-on-lime',
     amber: 'bg-warn/15 text-warn',
     red: 'bg-danger/10 text-danger',
     gray: 'bg-muted text-muted-foreground',
@@ -130,7 +130,7 @@ interface BtnProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 export function Btn({ variant = 'dark', size = 'md', full, className, children, ...rest }: BtnProps) {
   const variants = {
     dark: 'bg-primary text-primary-foreground hover:opacity-90',
-    lime: 'bg-lime text-ink hover:brightness-105',
+    lime: 'bg-lime text-on-lime hover:brightness-105',
     outline: 'border border-border bg-card text-foreground hover:bg-muted',
     ghost: 'bg-transparent text-muted-foreground hover:text-foreground',
     danger: 'bg-danger/10 text-danger hover:bg-danger/20',
@@ -167,7 +167,7 @@ export function IconBtn({
   const tones = {
     card: 'bg-card text-foreground border border-border/70 shadow-sm',
     dark: 'bg-ink text-background',
-    lime: 'bg-lime text-ink',
+    lime: 'bg-lime text-on-lime',
     ghost: 'text-muted-foreground hover:text-foreground',
   }
   return (
@@ -332,7 +332,7 @@ export function Field({
 }
 
 export const inputCls =
-  'min-h-11 w-full rounded-2xl border border-input bg-card px-4 text-[15px] font-semibold text-foreground placeholder:font-medium placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-50'
+  'min-h-11 w-full rounded-2xl border border-input bg-card px-4 text-base font-semibold text-foreground placeholder:font-medium placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-50'
 
 export const selectCls = cn(inputCls, 'appearance-none pr-10')
 

@@ -187,7 +187,7 @@ export function MaintenanceView({
                         <span
                           className={cn(
                             'flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2',
-                            selected ? 'border-lime bg-lime text-ink' : 'border-border'
+                            selected ? 'border-lime bg-lime text-on-lime' : 'border-border'
                           )}
                         >
                           {selected && <Check size={14} strokeWidth={3} />}
@@ -244,7 +244,7 @@ export function MaintenanceView({
       {/* CTA bengkel */}
       <motion.div {...fade}>
         <Card className="flex items-center gap-3">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-lime text-ink">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-lime text-on-lime">
             <MapPin size={20} />
           </span>
           <div className="min-w-0 flex-1">

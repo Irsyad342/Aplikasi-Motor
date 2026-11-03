@@ -1,12 +1,11 @@
-/* RideCheck Service Worker — PWA agar bisa dipasang seperti aplikasi di HP */
-const VERSION = 'ridecheck-v3'
+/* MotoMate Service Worker — PWA agar bisa dipasang seperti aplikasi di HP */
+const VERSION = 'motomate-v1'
 const APP_SHELL = [
   '/',
   '/manifest.webmanifest',
   '/images/app-icon-192.png',
   '/images/app-icon-512.png',
   '/images/app-icon-maskable-512.png',
-  '/logo.svg',
 ]
 
 self.addEventListener('install', (event) => {

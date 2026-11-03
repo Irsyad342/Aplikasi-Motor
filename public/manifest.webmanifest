@@ -1,6 +1,6 @@
 {
-  "name": "RideCheck — Pelacak Perawatan Motor",
-  "short_name": "RideCheck",
+  "name": "MotoMate — Pelacak Perawatan Motor",
+  "short_name": "MotoMate",
   "description": "Pantau kondisi komponen motor, catat servis, lacak perjalanan real-time, dan temukan bengkel terdekat di Pulau Jawa.",
   "id": "/",
   "start_url": "/",

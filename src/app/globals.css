@@ -39,6 +39,7 @@
   --color-card: var(--card);
   --color-lime: var(--lime);
   --color-lime-soft: var(--lime-soft);
+  --color-on-lime: var(--on-lime);
   --color-ok: var(--ok);
   --color-warn: var(--warn);
   --color-danger: var(--danger);
@@ -50,14 +51,16 @@
 }
 
 /*
-  RideCheck Design System — "Neon Lime"
+  MotoMate Design System — "Neon Lime"
   Light: off-white + kartu putih + aksen neon lime
-  Dark : deep black + kartu charcoal + aksen neon lime
+  Dark : deep black + kartu charcoal + aksen neon lime + efek glow
 */
 :root {
   --radius: 1.375rem;
   --lime: #dfff00;
   --lime-soft: #e9f58a;
+  /* Teks di atas permukaan lime — SELALU tinta gelap agar kontras di kedua tema */
+  --on-lime: #101110;
   --ok: #a4cc0d;
   --warn: #e8a317;
   --danger: #ff4d3d;
@@ -99,6 +102,7 @@
 .dark {
   --lime: #dfff00;
   --lime-soft: #e9f58a;
+  --on-lime: #101110;
   --ok: #dfff00;
   --warn: #f5c518;
   --danger: #ff6a5c;
@@ -149,11 +153,75 @@
   html {
     -webkit-tap-highlight-color: transparent;
     overscroll-behavior-y: none;
+    color-scheme: light;
+    accent-color: #a4cc0d;
+  }
+  /* next-theme menaruh class .dark pada <html> — kontrol native ikut tema gelap */
+  .dark {
+    color-scheme: dark;
+    accent-color: #dfff00;
   }
   body {
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
   }
+  ::selection {
+    background: #dfff00;
+    color: #101110;
+  }
+}
+
+/* ---------- Dark mode: efek glow neon lime ---------- */
+.dark .bg-lime {
+  box-shadow:
+    0 0 20px rgba(223, 255, 0, 0.35),
+    0 0 48px rgba(223, 255, 0, 0.12);
+}
+.dark .text-lime {
+  text-shadow: 0 0 16px rgba(223, 255, 0, 0.45);
+}
+.dark .border-lime {
+  border-color: rgba(223, 255, 0, 0.85);
+  box-shadow: 0 0 14px rgba(223, 255, 0, 0.18);
+}
+.dark .bg-lime\/25,
+.dark .bg-lime\/20,
+.dark .bg-lime\/15 {
+  box-shadow: 0 0 14px rgba(223, 255, 0, 0.1);
+}
+/* Cahaya ambien sangat halus di atas layar (dark mode saja) */
+.dark body {
+  background-image:
+    radial-gradient(1200px 420px at 50% -220px, rgba(223, 255, 0, 0.07), transparent 70%),
+    radial-gradient(800px 300px at 50% 120%, rgba(223, 255, 0, 0.04), transparent 70%);
+  background-attachment: fixed;
+}
+
+/* ---------- Peta (Leaflet): netral tanpa rona biru ---------- */
+.leaflet-container {
+  background: #eef0e9;
+}
+.leaflet-control-attribution {
+  font-size: 8px !important;
+  background: rgba(255, 255, 255, 0.72) !important;
+  color: #63655f;
+}
+.leaflet-control-attribution a {
+  color: #63655f;
+}
+.dark .leaflet-container {
+  background: #1c1d1b;
+}
+/* Tile OSM cerah dibalik jadi gelap netral — menghilangkan rona biru di dark mode */
+.dark .leaflet-tile-pane {
+  filter: invert(1) hue-rotate(180deg) brightness(0.82) contrast(0.88) saturate(0.35);
+}
+.dark .leaflet-control-attribution {
+  background: rgba(16, 17, 16, 0.82) !important;
+  color: #a5a7a4;
+}
+.dark .leaflet-control-attribution a {
+  color: #a5a7a4;
 }
 
 @layer utilities {

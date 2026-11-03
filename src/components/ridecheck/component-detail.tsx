@@ -57,7 +57,7 @@ function Segmented<T extends string>({
             aria-pressed={active}
             className={cn(
               'flex-1 rounded-full py-2 text-sm transition-all',
-              active ? 'bg-lime font-bold text-ink shadow-sm' : 'font-semibold text-muted-foreground'
+              active ? 'bg-lime font-bold text-on-lime shadow-sm' : 'font-semibold text-muted-foreground'
             )}
           >
             {o.label}
@@ -339,7 +339,7 @@ export function ComponentDetail({
                         ? 'text-danger'
                         : status === 'segera'
                           ? 'text-warn'
-                          : 'text-ink'
+                          : 'text-on-lime'
                     )}
                   >
                     {statusLabel(status)}
@@ -388,7 +388,7 @@ export function ComponentDetail({
                     key={r.id}
                     className="flex items-center gap-3 rounded-[26px] border border-border/70 bg-card p-4 shadow-sm"
                   >
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-lime/25 text-ink">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-lime/25 text-on-lime dark:text-lime">
                       <ComponentIcon icon={component.icon} size={18} />
                     </div>
                     <div className="min-w-0 flex-1">

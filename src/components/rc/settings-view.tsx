@@ -92,10 +92,10 @@ export function SettingsView({
 
       {/* Premium */}
       <FadeUp delay={0.04}>
-        <Card className="rounded-[28px] bg-lime text-ink">
+        <Card className="rounded-[28px] bg-lime text-on-lime">
           <div className="flex items-center gap-2.5">
             <Crown size={22} />
-            <h2 className="text-lg font-extrabold tracking-tight">RideCheck Premium</h2>
+            <h2 className="text-lg font-extrabold tracking-tight">MotoMate Premium</h2>
             <Pill tone="dark" className="ml-auto">
               Aktif
             </Pill>
@@ -255,7 +255,7 @@ export function SettingsView({
       {/* Footer */}
       <FadeUp delay={0.2}>
         <p className="text-center text-[11px] text-muted-foreground">
-          RideCheck v2.0 · Dibuat untuk pengendara Indonesia
+          MotoMate v2.0 · Dibuat untuk pengendara Indonesia
         </p>
       </FadeUp>
     </div>

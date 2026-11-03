@@ -1,4 +1,4 @@
-// Katalog komponen kendaraan (seperti RideCheck)
+// Katalog komponen kendaraan (seperti MotoMate)
 export interface CatalogItem {
   key: string
   name: string

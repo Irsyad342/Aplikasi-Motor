@@ -117,6 +117,31 @@ function todayInput(): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
+/** Cache state terakhir di perangkat — agar aplikasi terbuka instan tanpa spinner. */
+const STATE_CACHE_KEY = 'mm-state-cache'
+
+function readStateCache(): AppState | null {
+  try {
+    const raw = localStorage.getItem(STATE_CACHE_KEY)
+    if (!raw) return null
+    const data = JSON.parse(raw) as AppState
+    if (data && data.vehicle && Array.isArray(data.components) && Array.isArray(data.vehicles)) {
+      return data
+    }
+  } catch {
+    /* cache rusak — abaikan */
+  }
+  return null
+}
+
+function writeStateCache(data: AppState) {
+  try {
+    localStorage.setItem(STATE_CACHE_KEY, JSON.stringify(data))
+  } catch {
+    /* penyimpanan penuh — abaikan */
+  }
+}
+
 export default function Home() {
   const [state, setState] = useState<AppState | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -176,13 +201,26 @@ export default function Home() {
     setState(data)
     setLoadError(null)
     if (data.vehicle) setVehicleId(data.vehicle.id)
+    writeStateCache(data)
   }, [])
 
+  const hydratedRef = useRef(false)
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- sinkronisasi data awal dari API (sistem eksternal)
+    // Hidrasi instan dari cache perangkat — tampilan langsung terbuka tanpa loading
+    const cached = readStateCache()
+    if (cached) {
+      hydratedRef.current = true
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- hidrasi dari cache lokal (sistem eksternal)
+      setState(cached)
+      if (cached.vehicle) setVehicleId(cached.vehicle.id)
+    }
+    // Sinkronisasi segar di latar belakang — UI diperbarui diam-diam bila ada perubahan
     loadState().catch((e) => {
-      setLoadError(e instanceof Error ? e.message : 'Gagal memuat data')
-      toast.error(e instanceof Error ? e.message : 'Gagal memuat data')
+      if (!hydratedRef.current) {
+        const msg = e instanceof Error ? e.message : 'Gagal memuat data'
+        setLoadError(msg)
+        toast.error(msg)
+      }
     })
   }, [loadState])
 
@@ -623,7 +661,7 @@ export default function Home() {
       <div className="flex min-h-dvh justify-center bg-background">
         <div className="flex h-dvh w-full max-w-[520px] flex-col items-center justify-center gap-3">
           <span className="h-10 w-10 animate-spin rounded-full border-4 border-lime border-t-transparent" />
-          <p className="text-sm font-bold text-muted-foreground">Memuat RideCheck…</p>
+          <p className="text-sm font-bold text-muted-foreground">Memuat MotoMate…</p>
         </div>
       </div>
     )
@@ -648,7 +686,7 @@ export default function Home() {
               aria-label="Ganti kendaraan"
             >
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-lime">
-                <Bike size={20} className="text-ink" />
+                <Bike size={20} className="text-on-lime" />
               </span>
               <span className="min-w-0">
                 <span className="block truncate text-[14px] font-extrabold leading-tight text-foreground">
@@ -1025,7 +1063,7 @@ function NotificationsSheet({
     <Sheet open={open} onClose={onClose} title="Notifikasi">
       {due.length === 0 ? (
         <div className="flex flex-col items-center gap-2 py-10 text-center">
-          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-lime text-ink">
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-lime text-on-lime">
             <Bell size={22} />
           </span>
           <p className="text-sm font-extrabold">Tidak ada notifikasi</p>
@@ -1270,7 +1308,7 @@ function ServiceSheet({
               type="button"
               onClick={() => setType(t)}
               className={`press min-h-11 rounded-2xl border text-sm font-bold ${
-                type === t ? 'border-lime bg-lime text-ink' : 'border-input bg-card text-muted-foreground'
+                type === t ? 'border-lime bg-lime text-on-lime' : 'border-input bg-card text-muted-foreground'
               }`}
             >
               {t === 'ganti' ? 'Ganti Komponen' : 'Servis / Tune Up'}
@@ -1411,7 +1449,7 @@ function ExpenseSheet({
               type="button"
               onClick={() => setCategory(c.key)}
               className={`press min-h-11 rounded-2xl border text-[12px] font-bold ${
-                category === c.key ? 'border-lime bg-lime text-ink' : 'border-input bg-card text-muted-foreground'
+                category === c.key ? 'border-lime bg-lime text-on-lime' : 'border-input bg-card text-muted-foreground'
               }`}
             >
               {c.label}

@@ -199,7 +199,7 @@ export function RideView(props: RideViewProps) {
                 onClick={onToggleAutoTrack}
                 className={cn(
                   'press inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12px] font-bold leading-none transition-colors',
-                  autoTrack ? 'bg-lime text-ink' : 'bg-white/10 text-background'
+                  autoTrack ? 'bg-lime text-on-lime' : 'bg-white/10 text-background'
                 )}
               >
                 <span

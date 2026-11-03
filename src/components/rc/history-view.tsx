@@ -212,7 +212,7 @@ export function HistoryView({
                 onClick={() => setTab(t.key)}
                 className={cn(
                   'press relative flex min-h-9 items-center justify-center rounded-full text-[13px] font-bold transition-colors',
-                  active ? 'text-ink' : 'text-muted-foreground'
+                  active ? 'text-on-lime' : 'text-muted-foreground'
                 )}
               >
                 {active && (

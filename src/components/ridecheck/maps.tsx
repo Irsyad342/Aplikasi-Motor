@@ -51,8 +51,7 @@ function bengkelIconHtml(b: Bengkel, selected: boolean) {
 
 const RC_PING_CSS = `
 @keyframes rcPing { 0% { transform: scale(.6); opacity: .8 } 80%, 100% { transform: scale(1.9); opacity: 0 } }
-.leaflet-container { font-family: inherit; background: #e8edf2; }
-.leaflet-control-attribution { font-size: 8px !important; background: rgba(255,255,255,.7) !important; }
+.leaflet-container { font-family: inherit; }
 `
 
 // ---------- Hook dasar peta ----------
@@ -191,7 +190,7 @@ export function LiveTripMap({
         radius: 5,
         color: '#fff',
         weight: 2,
-        fillColor: '#22c55e',
+        fillColor: '#a4cc0d',
         fillOpacity: 1,
       }).addTo(map.current!)
       startPosRef.current = path[0]
@@ -269,11 +268,11 @@ export function RouteMap({
         lineJoin: 'round',
       }).addTo(map.current!)
       L.circleMarker(path[0] as LLatLng, {
-        radius: 5, color: '#fff', weight: 2, fillColor: '#22c55e', fillOpacity: 1,
+        radius: 5, color: '#fff', weight: 2, fillColor: '#a4cc0d', fillOpacity: 1,
       }).addTo(map.current!)
       const last = path[path.length - 1]
       L.circleMarker(last as LLatLng, {
-        radius: 5, color: '#fff', weight: 2, fillColor: '#ef4444', fillOpacity: 1,
+        radius: 5, color: '#fff', weight: 2, fillColor: '#ff4d3d', fillOpacity: 1,
       }).addTo(map.current!)
       map.current!.fitBounds(
         (L as typeof import('leaflet')).latLngBounds(path as LLatLng[]).pad(0.12)
@@ -423,11 +422,11 @@ export function BengkelMap({
       if (typeof accuracy === 'number' && accuracy > 0) {
         accCircleRef.current = L.circle([userPos.lat, userPos.lng] as LLatLng, {
           radius: Math.min(Math.max(accuracy, 8), 500),
-          color: '#3b82f6',
+          color: '#a4cc0d',
           weight: 1,
-          opacity: 0.4,
-          fillColor: '#3b82f6',
-          fillOpacity: 0.07,
+          opacity: 0.45,
+          fillColor: '#a4cc0d',
+          fillOpacity: 0.08,
         }).addTo(map.current!)
       }
       userRef.current = L.marker([userPos.lat, userPos.lng] as LLatLng, {

@@ -40,7 +40,7 @@ export function BottomNav({
               aria-current={active ? 'page' : undefined}
               className={cn(
                 'press relative flex min-h-12 items-center gap-1.5 rounded-full px-4 text-[12px] font-bold',
-                active ? 'text-ink' : 'text-muted-foreground'
+                active ? 'text-on-lime' : 'text-muted-foreground'
               )}
             >
               {active && (

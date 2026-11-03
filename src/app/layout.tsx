@@ -16,15 +16,15 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "RideCheck — Pelacak Perawatan Motor",
+  title: "MotoMate — Pelacak Perawatan Motor",
   description:
     "Pantau kondisi komponen motor Anda, catat servis, lacak perjalanan, dan temukan bengkel terdekat di Pulau Jawa.",
-  keywords: ["RideCheck", "perawatan motor", "servis motor", "pelacak komponen", "bengkel"],
+  keywords: ["MotoMate", "perawatan motor", "servis motor", "pelacak komponen", "bengkel"],
   manifest: "/manifest.webmanifest",
-  applicationName: "RideCheck",
+  applicationName: "MotoMate",
   appleWebApp: {
     capable: true,
-    title: "RideCheck",
+    title: "MotoMate",
     statusBarStyle: "default",
   },
   formatDetection: {

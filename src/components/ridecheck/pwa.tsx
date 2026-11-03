@@ -64,12 +64,12 @@ export function InstallPrompt() {
   if (hidden || !deferred) return null
 
   return (
-    <div className="fixed inset-x-4 bottom-24 z-[45] flex items-center gap-2.5 rounded-2xl bg-ink p-3 text-background shadow-xl">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-lime text-ink">
+    <div className="fixed inset-x-4 bottom-24 z-[45] mx-auto flex max-w-[488px] items-center gap-2.5 rounded-2xl bg-ink p-3 text-background shadow-xl">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-lime text-on-lime">
         <Download size={17} />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-[13px] font-bold leading-tight">Pasang RideCheck di HP-mu</p>
+        <p className="text-[13px] font-bold leading-tight">Pasang MotoMate di HP-mu</p>
         <p className="text-[11px] opacity-70">Buka layar penuh seperti aplikasi asli</p>
       </div>
       <button
@@ -79,7 +79,7 @@ export function InstallPrompt() {
           setDeferred(null)
           setHidden(true)
         }}
-        className="shrink-0 rounded-full bg-lime px-3.5 py-2 text-xs font-bold text-ink active:scale-95"
+        className="shrink-0 rounded-full bg-lime px-3.5 py-2 text-xs font-bold text-on-lime active:scale-95"
       >
         Instal
       </button>
