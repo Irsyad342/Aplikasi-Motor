@@ -93,6 +93,7 @@ function advanceSim(route: [number, number][], sp: SimState, stepKm: number): La
 
 export default function Home() {
   const [state, setState] = useState<AppState | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [vehicleId, setVehicleId] = useState<string | null>(null)
   const [view, setView] = useState<View>('kendaraan')
   const [tab, setTab] = useState<'komponen' | 'perawatan'>('komponen')
@@ -138,16 +139,27 @@ export default function Home() {
 
   // ---------- Data ----------
   const loadState = useCallback(async (id?: string) => {
-    const res = await fetch(id ? `/api/state?vehicleId=${id}` : '/api/state', {
-      cache: 'no-store',
-    })
-    const data: AppState = await res.json()
-    setState(data)
-    if (data.vehicle) setVehicleId(data.vehicle.id)
+    try {
+      const res = await fetch(id ? `/api/state?vehicleId=${id}` : '/api/state', {
+        cache: 'no-store',
+      })
+      if (!res.ok) throw new Error('Gagal memuat data')
+      const data: AppState = await res.json()
+      // Validasi bentuk data — jangan set state rusak (mis. respons error) yang bisa crash UI
+      if (!data || !Array.isArray(data.components) || !Array.isArray(data.vehicles)) {
+        throw new Error('Data tidak valid')
+      }
+      setState(data)
+      setLoadError(null)
+      if (data.vehicle) setVehicleId(data.vehicle.id)
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : 'Gagal memuat data')
+      throw e
+    }
   }, [])
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- pemuatan data awal dari API saat mount
+     
     loadState().catch((e) => toast.error(e instanceof Error ? e.message : 'Gagal memuat data'))
   }, [loadState])
 
@@ -155,7 +167,7 @@ export default function Home() {
   useEffect(() => {
     const auto = localStorage.getItem('rc-auto') === '1'
     const rem = localStorage.getItem('rc-reminder') !== '0'
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- sinkronisasi store eksternal saat mount
+     
     setAutoTrack(auto)
     setReminder(rem)
   }, [])
@@ -164,7 +176,7 @@ export default function Home() {
   useEffect(() => {
     const v = new URLSearchParams(window.location.search).get('view')
     if (v === 'perjalanan' || v === 'bengkel' || v === 'riwayat' || v === 'kendaraan') {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- baca URL saat mount untuk navigasi awal
+       
       setView(v as NavView)
     }
   }, [])
@@ -500,7 +512,7 @@ export default function Home() {
   }, [])
 
   const detailComponent =
-    state?.components.find((c) => c.id === openDetailId) ?? null
+    state?.components?.find((c) => c.id === openDetailId) ?? null
 
   const manageComponent = useCallback(
     (c: ComponentDTO) => {
@@ -511,6 +523,33 @@ export default function Home() {
   )
 
   // ---------- Render ----------
+  if (loadError && !state) {
+    return (
+      <div className="flex min-h-dvh justify-center bg-zinc-300/70">
+        <div className="flex h-dvh w-full max-w-[430px] items-center justify-center bg-[#f2f3f5]">
+          <div className="flex flex-col items-center gap-4 px-6 text-center">
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100 text-2xl">⚠️</span>
+            <div>
+              <p className="text-base font-bold text-zinc-800">Gagal memuat data</p>
+              <p className="mt-1 text-sm text-zinc-500">
+                Periksa koneksi internet kamu lalu coba lagi.
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setLoadError(null)
+                loadState().catch(() => {})
+              }}
+              className="rounded-full bg-sky-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-700 active:scale-95"
+            >
+              Coba Lagi
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   if (!state || !vehicle) {
     return (
       <div className="flex min-h-dvh justify-center bg-zinc-300/70">
