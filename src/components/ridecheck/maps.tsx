@@ -20,31 +20,31 @@ const ATTRIB =
 
 function motorIconHtml(heading: number, live: boolean) {
   return `<div style="position:relative;width:40px;height:40px;">
-    ${live ? `<div style="position:absolute;inset:0;border-radius:9999px;background:#0ea5e9;opacity:.35;animation:rcPing 1.4s ease-out infinite;"></div>` : ''}
-    <div style="position:absolute;inset:4px;border-radius:9999px;background:#0ea5e9;border:2.5px solid #fff;box-shadow:0 2px 8px rgba(2,132,199,.45);display:flex;align-items:center;justify-content:center;">
-      <svg style="transform:rotate(${heading}deg);transition:transform .4s;" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/></svg>
+    ${live ? `<div style="position:absolute;inset:0;border-radius:9999px;background:#dfff00;opacity:.4;animation:rcPing 1.4s ease-out infinite;"></div>` : ''}
+    <div style="position:absolute;inset:4px;border-radius:9999px;background:#dfff00;border:2.5px solid #101110;box-shadow:0 2px 8px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;">
+      <svg style="transform:rotate(${heading}deg);transition:transform .4s;" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#101110" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/></svg>
     </div>
   </div>`
 }
 
 function userDotHtml() {
   return `<div style="position:relative;width:22px;height:22px;">
-    <div style="position:absolute;inset:0;border-radius:9999px;background:#3b82f6;opacity:.3;animation:rcPing 1.6s ease-out infinite;"></div>
-    <div style="position:absolute;inset:6px;border-radius:9999px;background:#3b82f6;border:2.5px solid #fff;box-shadow:0 1px 6px rgba(59,130,246,.6);"></div>
+    <div style="position:absolute;inset:0;border-radius:9999px;background:#dfff00;opacity:.35;animation:rcPing 1.6s ease-out infinite;"></div>
+    <div style="position:absolute;inset:6px;border-radius:9999px;background:#dfff00;border:2.5px solid #101110;box-shadow:0 1px 6px rgba(0,0,0,.4);"></div>
   </div>`
 }
 
 function bengkelIconHtml(b: Bengkel, selected: boolean) {
-  const sky = b.type === 'resmi'
-  const bg = sky ? '#0ea5e9' : '#71717a'
+  const resmi = b.type === 'resmi'
+  const bg = resmi ? '#101110' : '#71717a'
   const size = selected ? 40 : 30
-  const icon = sky
+  const icon = resmi
     ? `<rect x="4" y="7" width="16" height="13" rx="2"/><path d="M4 10h16"/>`
     : `<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>`
   return `<div style="position:relative;width:${size}px;height:${size}px;transform:translate(-50%,-100%);">
     ${selected ? `<div style="position:absolute;left:50%;bottom:-4px;width:10px;height:10px;background:${bg};transform:translateX(-50%) rotate(45deg);"></div>` : ''}
-    <div style="position:absolute;inset:0;border-radius:${selected ? '12px' : '9999px'};background:${bg};border:2.5px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;">
-      <svg width="${selected ? 20 : 15}" height="${selected ? 20 : 15}" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${icon}</svg>
+    <div style="position:absolute;inset:0;border-radius:${selected ? '12px' : '9999px'};background:${bg};border:2.5px solid ${resmi ? '#dfff00' : '#fff'};box-shadow:0 2px 8px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;">
+      <svg width="${selected ? 20 : 15}" height="${selected ? 20 : 15}" viewBox="0 0 24 24" fill="none" stroke="${resmi ? '#dfff00' : '#fff'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${icon}</svg>
     </div>
   </div>`
 }
@@ -128,9 +128,9 @@ export function LiveTripMap({
       const L = await import('leaflet')
       if (cancelled || !map.current) return
       lineRef.current = L.polyline([], {
-        color: '#0ea5e9',
+        color: '#a4cc0d',
         weight: 5,
-        opacity: 0.85,
+        opacity: 0.9,
         lineCap: 'round',
         lineJoin: 'round',
       }).addTo(map.current)
@@ -218,8 +218,8 @@ export function LiveTripMap({
         onClick={recenter}
         aria-label="Pusatkan ke posisi motor"
         className={cn(
-          'absolute right-3 top-3 z-[500] flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-lg transition-colors',
-          follow ? 'text-sky-600' : 'text-zinc-500'
+          'absolute right-3 top-3 z-[500] flex h-10 w-10 items-center justify-center rounded-full bg-card shadow-lg transition-colors',
+          follow ? 'text-foreground' : 'text-muted-foreground'
         )}
       >
         <Crosshair size={19} />
@@ -229,9 +229,9 @@ export function LiveTripMap({
           <button
             type="button"
             onClick={recenter}
-            className="flex items-center gap-1.5 rounded-full bg-zinc-900 px-3.5 py-2 text-xs font-bold text-white shadow-lg active:scale-95"
+            className="press flex items-center gap-1.5 rounded-full bg-ink px-3.5 py-2 text-xs font-bold text-background shadow-lg"
           >
-            <Navigation size={13} className="text-sky-400" />
+            <Navigation size={13} className="text-lime" />
             Ikuti Posisi Motor
           </button>
         </div>
@@ -262,9 +262,9 @@ export function RouteMap({
       const L = await import('leaflet')
       if (cancelled || !map.current) return
       L.polyline(path as LLatLng[], {
-        color: '#0ea5e9',
+        color: '#a4cc0d',
         weight: 4,
-        opacity: 0.85,
+        opacity: 0.9,
         lineCap: 'round',
         lineJoin: 'round',
       }).addTo(map.current!)
@@ -384,11 +384,11 @@ export function BengkelMap({
       circleRef.current?.remove()
       circleRef.current = L.circle(center as LLatLng, {
         radius: radiusKm * 1000,
-        color: '#0ea5e9',
+        color: '#a4cc0d',
         weight: 1.5,
-        opacity: 0.55,
-        fillColor: '#0ea5e9',
-        fillOpacity: 0.05,
+        opacity: 0.6,
+        fillColor: '#a4cc0d',
+        fillOpacity: 0.06,
         dashArray: '6 8',
       }).addTo(map.current!)
 
@@ -466,15 +466,15 @@ export function BengkelMap({
           map.current?.flyTo(center as LLatLng, 14, { duration: 0.5 })
         }}
         aria-label="Pusatkan ke titik acuan"
-        className="absolute right-3 top-3 z-[500] flex h-10 w-10 items-center justify-center rounded-full bg-white text-sky-600 shadow-lg transition-colors active:scale-95"
+        className="absolute right-3 top-3 z-[500] flex h-10 w-10 items-center justify-center rounded-full bg-card text-foreground shadow-lg transition-colors press"
       >
         <Crosshair size={19} />
       </button>
-      <div className="pointer-events-none absolute bottom-3 left-3 z-[500] flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1.5 text-[10px] font-bold text-zinc-600 shadow">
-        <MapPin size={11} className="text-sky-500" />
+      <div className="pointer-events-none absolute bottom-3 left-3 z-[500] flex items-center gap-1.5 rounded-full bg-card/95 px-3 py-1.5 text-[10px] font-bold text-muted-foreground shadow">
+        <MapPin size={11} className="text-foreground" />
         Resmi
-        <span className="mx-0.5 h-2 w-px bg-zinc-200" />
-        <Bike size={11} className="text-zinc-500" />
+        <span className="mx-0.5 h-2 w-px bg-border" />
+        <Bike size={11} />
         Umum
       </div>
     </div>

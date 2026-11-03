@@ -103,9 +103,6 @@ function advanceSim(route: [number, number][], sp: SimState, stepKm: number): La
   return { lat: from[0] + (to[0] - from[0]) * sp.frac, lng: from[1] + (to[1] - from[1]) * sp.frac }
 }
 
-const HERO_LIGHT = '/images/motor-hero-light.png'
-const HERO_DARK = '/images/motor-hero-dark.png'
-
 function greeting(): string {
   const h = new Date().getHours()
   if (h >= 4 && h < 11) return 'Selamat pagi'
@@ -700,8 +697,6 @@ export default function Home() {
                   trips={state.trips}
                   records={state.records}
                   expenses={state.expenses}
-                  heroLight={HERO_LIGHT}
-                  heroDark={HERO_DARK}
                   onQuickAction={onQuickAction}
                   onOpenBengkel={() => setView('bengkel')}
                   onOpenDetail={setOpenDetailId}
@@ -760,8 +755,6 @@ export default function Home() {
                   components={state.components}
                   records={state.records}
                   trips={state.trips}
-                  heroLight={HERO_LIGHT}
-                  heroDark={HERO_DARK}
                   onEditOdometer={() => setOdoOpen(true)}
                   onEditVehicle={() => setEditVehicle(vehicle)}
                   onAddVehicle={() => setAddVehicleOpen(true)}

@@ -34,7 +34,39 @@ import {
 } from '@/lib/status'
 import type { ComponentDTO, RecordDTO, VehicleDTO } from '@/lib/state'
 import { ComponentIcon } from './icons'
-import { Segmented } from './ui-bits'
+
+/** Segmented control dengan design token — aktif lime. */
+function Segmented<T extends string>({
+  value,
+  options,
+  onChange,
+}: {
+  value: T
+  options: Array<{ value: T; label: string }>
+  onChange: (v: T) => void
+}) {
+  return (
+    <div className="flex rounded-full bg-muted p-1">
+      {options.map((o) => {
+        const active = value === o.value
+        return (
+          <button
+            key={o.value}
+            type="button"
+            onClick={() => onChange(o.value)}
+            aria-pressed={active}
+            className={cn(
+              'flex-1 rounded-full py-2 text-sm transition-all',
+              active ? 'bg-lime font-bold text-ink shadow-sm' : 'font-semibold text-muted-foreground'
+            )}
+          >
+            {o.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
 
 const STATUS_RANGE: Record<ComponentStatus, string> = {
   ganti: 'var(--danger)',

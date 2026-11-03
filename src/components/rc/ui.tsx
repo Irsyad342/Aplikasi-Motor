@@ -216,6 +216,49 @@ export function StatCard({
   )
 }
 
+/** Tile highlight kecil di dalam kartu hero — info ringkas yang membantu user. */
+export function HighlightTile({
+  label,
+  value,
+  sub,
+  dot,
+  onClick,
+  className,
+}: {
+  label: string
+  value: ReactNode
+  sub?: ReactNode
+  /** Titik status berwarna di samping label */
+  dot?: 'lime' | 'amber' | 'red' | null
+  onClick?: () => void
+  className?: string
+}) {
+  const dotCls =
+    dot === 'red' ? 'bg-danger' : dot === 'amber' ? 'bg-warn' : dot === 'lime' ? 'bg-lime' : null
+  const Tag = (onClick ? 'button' : 'div') as 'button'
+  return (
+    <Tag
+      {...(onClick ? { type: 'button' as const, onClick } : {})}
+      className={cn(
+        'min-w-0 rounded-[18px] bg-muted/70 px-3 py-2.5 text-left',
+        onClick && 'press transition-colors hover:bg-muted',
+        className
+      )}
+    >
+      <span className="flex items-center gap-1.5">
+        {dotCls && <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', dotCls)} />}
+        <span className="truncate text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+          {label}
+        </span>
+      </span>
+      <span className="mt-1 block truncate text-[13px] font-extrabold leading-tight text-foreground">
+        {value}
+      </span>
+      {sub && <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{sub}</span>}
+    </Tag>
+  )
+}
+
 // ---------- Progress ----------
 
 export function ProgressBar({

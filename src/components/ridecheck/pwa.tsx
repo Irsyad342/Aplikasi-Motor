@@ -64,13 +64,13 @@ export function InstallPrompt() {
   if (hidden || !deferred) return null
 
   return (
-    <div className="absolute inset-x-4 bottom-24 z-[45] flex items-center gap-2.5 rounded-2xl bg-zinc-900 p-3 text-white shadow-xl">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sky-500">
+    <div className="fixed inset-x-4 bottom-24 z-[45] flex items-center gap-2.5 rounded-2xl bg-ink p-3 text-background shadow-xl">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-lime text-ink">
         <Download size={17} />
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-[13px] font-bold leading-tight">Pasang RideCheck di HP-mu</p>
-        <p className="text-[11px] text-zinc-300">Buka layar penuh seperti aplikasi asli</p>
+        <p className="text-[11px] opacity-70">Buka layar penuh seperti aplikasi asli</p>
       </div>
       <button
         type="button"
@@ -79,7 +79,7 @@ export function InstallPrompt() {
           setDeferred(null)
           setHidden(true)
         }}
-        className="shrink-0 rounded-full bg-sky-500 px-3.5 py-2 text-xs font-bold active:scale-95"
+        className="shrink-0 rounded-full bg-lime px-3.5 py-2 text-xs font-bold text-ink active:scale-95"
       >
         Instal
       </button>
@@ -87,7 +87,7 @@ export function InstallPrompt() {
         type="button"
         onClick={() => setHidden(true)}
         aria-label="Tutup"
-        className="shrink-0 rounded-full bg-white/10 p-1.5 text-zinc-300"
+        className="shrink-0 rounded-full bg-background/10 p-1.5"
       >
         <X size={13} />
       </button>

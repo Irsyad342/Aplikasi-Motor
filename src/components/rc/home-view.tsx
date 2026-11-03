@@ -21,19 +21,18 @@ import {
 } from 'lucide-react'
 import type { ComponentDTO, ExpenseDTO, RecordDTO, TripDTO, VehicleDTO } from '@/lib/state'
 import type { ComponentStatus } from '@/lib/status'
-import { formatKm, formatDate, formatMonthYear, statusLabel, statusOrder } from '@/lib/status'
+import { formatKm, formatDate, statusOrder } from '@/lib/status'
 import { cn } from '@/lib/utils'
 import {
   Btn,
   Card,
   EmptyState,
+  HighlightTile,
   IconBtn,
   Pill,
-  ProgressBar,
   SectionTitle,
   StatCard,
   formatRupiah,
-  statusTone,
   type QuickAction,
 } from '@/components/rc/ui'
 import { ComponentIcon } from '@/components/ridecheck/icons'
@@ -44,8 +43,6 @@ export interface HomeViewProps {
   trips: TripDTO[]
   records: RecordDTO[]
   expenses: ExpenseDTO[]
-  heroLight: string
-  heroDark: string
   onQuickAction: (a: QuickAction) => void
   onOpenBengkel: () => void
   onOpenDetail: (id: string) => void
@@ -93,8 +90,6 @@ export function HomeView({
   trips,
   records,
   expenses,
-  heroLight,
-  heroDark,
   onQuickAction,
   onOpenBengkel,
   onOpenDetail,
@@ -139,6 +134,20 @@ export function HomeView({
     [records, expenses]
   )
 
+  const totalKm = useMemo(() => trips.reduce((s, t) => s + t.distance, 0), [trips])
+
+  // Biaya bulan ini (servis + pengeluaran harian)
+  const costThisMonth = useMemo(() => {
+    const inMonth = (iso: string) => {
+      const d = new Date(iso)
+      return d.getFullYear() === nowYear && d.getMonth() === nowMonth
+    }
+    return (
+      records.filter((r) => inMonth(r.date)).reduce((s, r) => s + (r.cost ?? 0), 0) +
+      expenses.filter((e) => inMonth(e.date)).reduce((s, e) => s + e.amount, 0)
+    )
+  }, [records, expenses, nowYear, nowMonth])
+
   // ----- Aktivitas terakhir -----
   const activities = useMemo(() => {
     const items = [
@@ -176,10 +185,10 @@ export function HomeView({
 
   return (
     <div className="space-y-6">
-      {/* ---------- 1. Hero kendaraan ---------- */}
+      {/* ---------- 1. Hero kendaraan (minimalis, tanpa foto) ---------- */}
       <Section>
-        <Card padded={false} className="overflow-hidden rounded-[28px]">
-          <div className="flex items-start justify-between gap-3 px-5 pt-5">
+        <Card className="rounded-[28px]">
+          <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h1 className="text-2xl font-extrabold break-words tracking-tight text-foreground">
                 {vehicle.name}
@@ -194,20 +203,7 @@ export function HomeView({
             </Pill>
           </div>
 
-          <div className="relative flex items-center justify-center">
-            <img
-              src={heroLight}
-              alt={vehicle.name}
-              className="dark:hidden max-h-56 w-full object-contain"
-            />
-            <img
-              src={heroDark}
-              alt={vehicle.name}
-              className="hidden dark:block max-h-56 w-full object-contain"
-            />
-          </div>
-
-          <div className="flex items-end justify-between gap-3 px-5 pb-5 pt-2">
+          <div className="mt-5 flex items-end justify-between gap-3">
             <div className="min-w-0">
               <div className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
                 Odometer
@@ -228,6 +224,50 @@ export function HomeView({
                 <MapPin size={18} />
               </IconBtn>
             </div>
+          </div>
+
+          {/* Highlight info ringkas */}
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            {nextDue && nextDue.health ? (
+              <HighlightTile
+                label="Servis"
+                dot={barTone(nextDue.health.status)}
+                value={nextDue.name}
+                sub={
+                  nextDue.health.kmRemaining > 0
+                    ? `Sisa ${formatKm(nextDue.health.kmRemaining)} km`
+                    : 'Jatuh tempo'
+                }
+                onClick={() => onOpenDetail(nextDue.id)}
+              />
+            ) : (
+              <HighlightTile
+                label="Servis"
+                dot={installed.length > 0 ? 'lime' : null}
+                value={installed.length > 0 ? 'Aman' : '—'}
+                sub={installed.length > 0 ? 'Semua sehat' : 'Belum ada'}
+              />
+            )}
+            <HighlightTile
+              label="Bulan Ini"
+              value={
+                <>
+                  {formatKm(kmThisMonth)}
+                  <span className="ml-0.5 text-[11px] font-bold text-muted-foreground">km</span>
+                </>
+              }
+              sub="jarak tempuh"
+            />
+            <HighlightTile
+              label="Biaya"
+              value={
+                <>
+                  <span className="text-[11px] font-bold text-muted-foreground">Rp</span>
+                  {formatRupiah(costThisMonth)}
+                </>
+              }
+              sub="bulan ini"
+            />
           </div>
         </Card>
       </Section>
@@ -254,61 +294,8 @@ export function HomeView({
         </div>
       </Section>
 
-      {/* ---------- 3. Perawatan berikutnya ---------- */}
+      {/* ---------- 3. Statistik ---------- */}
       <Section delay={0.1}>
-        <SectionTitle title="Perawatan Berikutnya" />
-        <Card>
-          {nextDue && nextDue.health ? (
-            <>
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-muted text-foreground">
-                  <ComponentIcon icon={nextDue.icon} size={22} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="truncate text-[13px] font-bold text-muted-foreground">
-                      {nextDue.name}
-                    </p>
-                    <Pill tone={statusTone(nextDue.health.status)} className="shrink-0">
-                      {statusLabel(nextDue.health.status)}
-                    </Pill>
-                  </div>
-                  <p className="mt-0.5 truncate text-2xl font-extrabold tracking-tight text-foreground">
-                    {nextDue.health.kmRemaining > 0
-                      ? `Sisa ${formatKm(nextDue.health.kmRemaining)} km`
-                      : 'Sudah jatuh tempo'}
-                  </p>
-                </div>
-              </div>
-              <p className="mt-1.5 px-0.5 text-[12px] font-semibold text-muted-foreground">
-                Est. {formatMonthYear(nextDue.health.estDate)}
-              </p>
-              <ProgressBar
-                className="mt-3"
-                pct={nextDue.health.worstPct}
-                tone={barTone(nextDue.health.status)}
-              />
-              <div className="mt-4 flex gap-2">
-                <Btn variant="dark" size="sm" onClick={() => onQuickAction('service')}>
-                  Catat Servis
-                </Btn>
-                <Btn variant="outline" size="sm" onClick={() => onOpenDetail(nextDue.id)}>
-                  Detail
-                </Btn>
-              </div>
-            </>
-          ) : (
-            <EmptyState
-              icon={<Wrench size={22} />}
-              title="Belum ada komponen terpasang"
-              desc="Tambahkan komponen dari menu Perawatan untuk mulai memantau jadwal servis."
-            />
-          )}
-        </Card>
-      </Section>
-
-      {/* ---------- 4. Statistik ---------- */}
-      <Section delay={0.15}>
         <SectionTitle title="Statistik" />
         <div className="grid grid-cols-2 gap-3">
           <StatCard
@@ -318,8 +305,8 @@ export function HomeView({
                 <Route size={20} />
               </span>
             }
-            label="Jarak Bulan Ini"
-            value={formatKm(kmThisMonth)}
+            label="Total Jarak Tempuh"
+            value={formatKm(totalKm)}
             unit="km"
           />
           <StatCard icon={<MapPinned size={18} />} label="Total Perjalanan" value={trips.length} />

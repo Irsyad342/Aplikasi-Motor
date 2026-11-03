@@ -2,16 +2,23 @@
 
 /**
  * VehicleView — tab "Kendaraan Saya".
- * Hero profil kendaraan (foto light/dark), odometer, daftar kendaraan lain,
- * ringkasan informasi, dan 5 servis terakhir.
+ * Hero profil kendaraan (minimalis tanpa foto, dengan highlight ringkas),
+ * daftar kendaraan lain, dan 5 servis terakhir.
  */
 
-import type { ReactNode } from 'react'
 import { motion } from 'framer-motion'
 import { Bike, Car, Gauge, Pencil, Plus, Wrench } from 'lucide-react'
 import type { ComponentDTO, RecordDTO, TripDTO, VehicleDTO } from '@/lib/state'
 import { formatDate, formatKm, formatKm1 } from '@/lib/status'
-import { Btn, Card, EmptyState, Pill, SectionTitle, formatRupiah } from '@/components/rc/ui'
+import {
+  Btn,
+  Card,
+  EmptyState,
+  HighlightTile,
+  Pill,
+  SectionTitle,
+  formatRupiah,
+} from '@/components/rc/ui'
 import { ComponentIcon } from '@/components/ridecheck/icons'
 
 export interface VehicleViewProps {
@@ -20,8 +27,6 @@ export interface VehicleViewProps {
   components: ComponentDTO[]
   records: RecordDTO[]
   trips: TripDTO[]
-  heroLight: string
-  heroDark: string
   onEditOdometer: () => void
   onEditVehicle: () => void
   onAddVehicle: () => void
@@ -33,18 +38,15 @@ export interface VehicleViewProps {
 function FadeUp({
   children,
   delay = 0,
-  className,
 }: {
-  children: ReactNode
+  children: React.ReactNode
   delay?: number
-  className?: string
 }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay, ease: [0.22, 1, 0.36, 1] }}
-      className={className}
     >
       {children}
     </motion.div>
@@ -57,8 +59,6 @@ export function VehicleView({
   components,
   records,
   trips,
-  heroLight,
-  heroDark,
   onEditOdometer,
   onEditVehicle,
   onAddVehicle,
@@ -73,15 +73,6 @@ export function VehicleView({
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 5)
 
-  const info: Array<[string, string]> = [
-    ['Jenis', vehicle.type],
-    ['Nomor Polisi', vehicle.plate ?? '—'],
-    ['Komponen Dipantau', String(installedCount)],
-    ['Total Servis', String(records.length)],
-    ['Total Perjalanan', String(trips.length)],
-    ['Total Jarak', `${formatKm1(totalKm)} km`],
-  ]
-
   return (
     <div className="space-y-6 pb-4">
       {/* Judul */}
@@ -89,53 +80,64 @@ export function VehicleView({
         <h1 className="text-2xl font-extrabold tracking-tight text-foreground">Kendaraan Saya</h1>
       </FadeUp>
 
-      {/* Hero profil */}
+      {/* Hero profil — minimalis tanpa foto */}
       <FadeUp delay={0.04}>
-        <Card padded={false} className="overflow-hidden rounded-[28px]">
-          <img
-            src={heroLight}
-            alt={vehicle.name}
-            className="dark:hidden max-h-52 w-full object-contain"
-          />
-          <img
-            src={heroDark}
-            alt={vehicle.name}
-            className="hidden max-h-52 w-full object-contain dark:block"
-          />
-          <div className="p-5">
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-xl font-extrabold tracking-tight text-foreground">
+        <Card className="rounded-[28px]">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="text-xl font-extrabold break-words tracking-tight text-foreground">
                 {vehicle.name}
               </h2>
-            </div>
-            <div className="mt-2 flex flex-wrap items-center gap-1.5">
-              <Pill tone="gray">
-                {vehicle.type.toLowerCase().includes('mobil') ? (
-                  <Car size={12} />
-                ) : (
-                  <Bike size={12} />
-                )}
-                {vehicle.type}
-              </Pill>
-              {vehicle.plate && <Pill tone="outline">{vehicle.plate}</Pill>}
-            </div>
-
-            <div className="mt-4">
-              <div className="stat-num text-3xl leading-none text-foreground">
-                {formatKm(vehicle.odometer)}
-                <span className="ml-1 text-base font-bold text-muted-foreground">km</span>
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                <Pill tone="dark">
+                  {vehicle.type.toLowerCase().includes('mobil') ? (
+                    <Car size={12} />
+                  ) : (
+                    <Bike size={12} />
+                  )}
+                  {vehicle.type === 'motor' ? 'Motor' : 'Mobil'}
+                </Pill>
+                {vehicle.plate && <Pill tone="outline">{vehicle.plate}</Pill>}
               </div>
-              <div className="mt-1.5 text-[12px] font-semibold text-muted-foreground">Odometer</div>
             </div>
+            <Pill tone="lime" className="mt-1 shrink-0">
+              Aktif
+            </Pill>
+          </div>
 
-            <div className="mt-4 flex gap-2.5">
-              <Btn variant="lime" className="flex-1" onClick={onEditOdometer}>
-                <Gauge size={16} /> Update KM
-              </Btn>
-              <Btn variant="outline" className="flex-1" onClick={onEditVehicle}>
-                <Pencil size={16} /> Ubah Data
-              </Btn>
+          <div className="mt-5">
+            <div className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+              Odometer
             </div>
+            <div className="stat-num text-3xl leading-tight text-foreground">
+              {formatKm(vehicle.odometer)}
+              <span className="ml-1 text-base font-bold text-muted-foreground">km</span>
+            </div>
+          </div>
+
+          {/* Highlight ringkas */}
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            <HighlightTile label="Dipantau" value={installedCount} sub="komponen" />
+            <HighlightTile label="Servis" value={records.length} sub="total catatan" />
+            <HighlightTile
+              label="Jarak"
+              value={
+                <>
+                  {formatKm1(totalKm)}
+                  <span className="ml-0.5 text-[11px] font-bold text-muted-foreground">km</span>
+                </>
+              }
+              sub="total tempuh"
+            />
+          </div>
+
+          <div className="mt-4 flex gap-2.5">
+            <Btn variant="lime" className="flex-1" onClick={onEditOdometer}>
+              <Gauge size={16} /> Update KM
+            </Btn>
+            <Btn variant="outline" className="flex-1" onClick={onEditVehicle}>
+              <Pencil size={16} /> Ubah Data
+            </Btn>
           </div>
         </Card>
       </FadeUp>
@@ -179,26 +181,8 @@ export function VehicleView({
         </FadeUp>
       )}
 
-      {/* Informasi */}
-      <FadeUp delay={0.12}>
-        <section>
-          <SectionTitle title="Informasi" />
-          <Card>
-            {info.map(([k, v]) => (
-              <div
-                key={k}
-                className="flex items-center justify-between gap-3 border-b border-border/60 py-2.5 last:border-0"
-              >
-                <span className="text-[13px] font-semibold text-muted-foreground">{k}</span>
-                <span className="text-right text-[13px] font-extrabold text-foreground">{v}</span>
-              </div>
-            ))}
-          </Card>
-        </section>
-      </FadeUp>
-
       {/* Servis terakhir */}
-      <FadeUp delay={0.16}>
+      <FadeUp delay={0.12}>
         <section>
           <SectionTitle title="Servis Terakhir" action="Lihat Semua" onAction={onOpenHistory} />
           {lastRecords.length === 0 ? (
@@ -242,7 +226,7 @@ export function VehicleView({
       </FadeUp>
 
       {/* Tambah kendaraan */}
-      <FadeUp delay={0.2}>
+      <FadeUp delay={0.16}>
         <Btn variant="outline" full onClick={onAddVehicle}>
           <Plus size={16} /> Tambah Kendaraan
         </Btn>
