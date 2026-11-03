@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowUpRight, Check, MapPin, Plus, Wrench } from 'lucide-react'
+import { ArrowUpRight, Bike, Check, MapPin, Plus, Wrench } from 'lucide-react'
 import type { ComponentDTO, RecordDTO, VehicleDTO } from '@/lib/state'
 import {
   formatKm,
@@ -97,37 +97,87 @@ export function MaintenanceView({
     return { sehat, segera, ganti }
   }, [installed])
 
-  const tiles: Array<{ label: string; value: number; dot: string | null }> = [
-    { label: 'Dipantau', value: installed.length, dot: null },
-    { label: 'Sehat', value: counts.sehat, dot: 'bg-lime' },
-    { label: 'Segera', value: counts.segera, dot: 'bg-warn' },
-    { label: 'Jatuh Tempo', value: counts.ganti, dot: 'bg-danger' },
-  ]
+  /** Persentase komponen sehat — dipakai kartu kondisi dashboard */
+  const healthPct = installed.length > 0 ? Math.round((counts.sehat / installed.length) * 100) : 0
 
   return (
     <div className="space-y-6">
       {/* Ringkasan */}
       <motion.header {...fade}>
         <h1 className="text-2xl font-extrabold tracking-tight text-foreground">Perawatan</h1>
-        <p className="mt-1 text-[13px] font-semibold text-muted-foreground">
-          {vehicle.name} · {formatKm(vehicle.odometer)} km
-        </p>
       </motion.header>
 
-      {/* Tile statistik */}
-      <motion.div {...fade} className="grid grid-cols-4 gap-2">
-        {tiles.map((t) => (
-          <Card key={t.label} className="p-3 text-center">
-            <div className="stat-num text-xl leading-none text-foreground">{t.value}</div>
-            <div className="mt-1.5 flex items-center justify-center gap-1">
-              {t.dot && <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', t.dot)} />}
-              <span className="text-center text-[10px] font-bold leading-tight text-muted-foreground">
-                {t.label}
-              </span>
+      {/* Panel kondisi — dashboard lime ala MotoMate: profil kendaraan, persen sehat,
+          progress bar, dan ringkasan status dalam satu kartu minimalis */}
+      <motion.section {...fade} aria-label="Ringkasan kondisi komponen">
+        <div className="rounded-[28px] bg-lime p-5 text-on-lime">
+          {/* Profil kendaraan */}
+          <div className="flex items-center gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-on-lime/10">
+              <Bike size={20} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[15px] font-extrabold leading-tight">{vehicle.name}</p>
+              <p className="mt-0.5 text-[12px] font-bold opacity-70">{formatKm(vehicle.odometer)} km odometer</p>
             </div>
-          </Card>
-        ))}
-      </motion.div>
+            <span className="shrink-0 rounded-full bg-on-lime px-3 py-1.5 text-[11px] font-extrabold leading-none text-lime">
+              {installed.length} Dipantau
+            </span>
+          </div>
+
+          {/* Kondisi komponen */}
+          {installed.length > 0 ? (
+            <>
+              <p className="mt-5 text-[11px] font-extrabold uppercase tracking-[0.08em] opacity-70">
+                Kondisi Komponen
+              </p>
+              <div className="mt-1 flex items-end justify-between gap-3">
+                <div className="flex items-end gap-2">
+                  <span className="stat-num text-[42px] leading-none">{healthPct}%</span>
+                  <span className="pb-1 text-[12px] font-bold opacity-80">sehat</span>
+                </div>
+                <span className="pb-1 text-[12px] font-bold opacity-80">
+                  {counts.sehat} dari {installed.length} komponen
+                </span>
+              </div>
+              <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-on-lime/10" role="img" aria-label={`Kondisi ${healthPct}% sehat`}>
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${healthPct}%` }}
+                  transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+                  className="h-full rounded-full bg-on-lime"
+                />
+              </div>
+
+              {/* Chip status */}
+              {counts.ganti > 0 || counts.segera > 0 ? (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {counts.segera > 0 && (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-on-lime/10 px-3 py-1.5 text-[11px] font-extrabold leading-none">
+                      <span className="h-1.5 w-1.5 rounded-full bg-warn" aria-hidden="true" />
+                      {counts.segera} Segera
+                    </span>
+                  )}
+                  {counts.ganti > 0 && (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-on-lime px-3 py-1.5 text-[11px] font-extrabold leading-none text-lime">
+                      <span className="h-1.5 w-1.5 rounded-full bg-danger" aria-hidden="true" />
+                      {counts.ganti} Jatuh Tempo
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <p className="mt-4 inline-flex items-center gap-1.5 text-[12px] font-extrabold">
+                  <Check size={15} strokeWidth={3} /> Semua komponen sehat — mantap!
+                </p>
+              )}
+            </>
+          ) : (
+            <p className="mt-5 text-[13px] font-bold leading-snug opacity-90">
+              Belum ada komponen dipantau — pasang dari katalog di bawah untuk mulai memantau kondisi motor.
+            </p>
+          )}
+        </div>
+      </motion.section>
 
       {/* Mode pilih komponen */}
       <motion.div {...fade}>

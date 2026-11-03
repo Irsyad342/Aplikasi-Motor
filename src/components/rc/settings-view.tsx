@@ -2,13 +2,13 @@
 
 /**
  * SettingsView — halaman "Pengaturan" (dirender di dalam slide-over oleh parent).
- * Berisi kartu Premium, daftar kendaraan, preferensi (pengingat & tema),
+ * Berisi kartu akun (nama, email, keluar), daftar kendaraan, preferensi (pengingat & tema),
  * reset data demo, dan footer versi.
  */
 
 import { useSyncExternalStore, type ReactNode } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Bike, Crown, Pencil, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, Bike, LogOut, Pencil, Plus, Trash2, UserRound } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import type { VehicleDTO } from '@/lib/state'
 import { formatKm } from '@/lib/status'
@@ -16,6 +16,7 @@ import { Btn, Card, IconBtn, Pill, SectionTitle } from '@/components/rc/ui'
 import { cn } from '@/lib/utils'
 
 export interface SettingsViewProps {
+  user: { id: string; name: string; email: string }
   vehicles: VehicleDTO[]
   currentVehicleId: string
   reminder: boolean
@@ -24,6 +25,7 @@ export interface SettingsViewProps {
   onEditVehicle: (v: VehicleDTO) => void
   onDeleteVehicle: (v: VehicleDTO) => void
   onResetData: () => void
+  onLogout: () => void
   onBack: () => void
 }
 
@@ -65,6 +67,7 @@ function FadeUp({
 }
 
 export function SettingsView({
+  user,
   vehicles,
   currentVehicleId,
   reminder,
@@ -73,6 +76,7 @@ export function SettingsView({
   onEditVehicle,
   onDeleteVehicle,
   onResetData,
+  onLogout,
   onBack,
 }: SettingsViewProps) {
   const { theme, setTheme } = useTheme()
@@ -90,19 +94,21 @@ export function SettingsView({
         </div>
       </FadeUp>
 
-      {/* Premium */}
+      {/* Akun */}
       <FadeUp delay={0.04}>
-        <Card className="rounded-[28px] bg-lime text-on-lime">
-          <div className="flex items-center gap-2.5">
-            <Crown size={22} />
-            <h2 className="text-lg font-extrabold tracking-tight">MotoMate Premium</h2>
-            <Pill tone="dark" className="ml-auto">
-              Aktif
-            </Pill>
+        <Card>
+          <div className="flex items-center gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-lime text-on-lime">
+              <UserRound size={20} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[14px] font-extrabold text-foreground">{user.name}</p>
+              <p className="mt-0.5 truncate text-[12px] text-muted-foreground">{user.email}</p>
+            </div>
           </div>
-          <p className="mt-1.5 text-[12px] font-semibold opacity-80">
-            Semua fitur terbuka · Member sejak Oktober 2025
-          </p>
+          <Btn variant="outline" full className="mt-4" onClick={onLogout}>
+            <LogOut size={16} /> Keluar
+          </Btn>
         </Card>
       </FadeUp>
 

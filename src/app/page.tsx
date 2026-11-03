@@ -37,6 +37,7 @@ import {
 } from '@/components/rc/ui'
 import { HomeView } from '@/components/rc/home-view'
 import { RideView } from '@/components/rc/ride-view'
+import { AuthView, type AuthUser } from '@/components/rc/auth-view'
 import { MaintenanceView } from '@/components/rc/maintenance-view'
 import { VehicleView } from '@/components/rc/vehicle-view'
 import { HistoryView } from '@/components/rc/history-view'
@@ -98,7 +99,21 @@ function writeStateCache(data: AppState) {
   }
 }
 
+function firstName(name: string): string {
+  return name.trim().split(/\s+/)[0] || 'Rider'
+}
+
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return 'MM'
+  const first = parts[0][0] ?? ''
+  const second = parts.length > 1 ? parts[parts.length - 1][0] ?? '' : parts[0][1] ?? ''
+  return (first + second).toUpperCase()
+}
+
 export default function Home() {
+  const [user, setUser] = useState<AuthUser | null>(null)
+  const [authReady, setAuthReady] = useState(false)
   const [state, setState] = useState<AppState | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [vehicleId, setVehicleId] = useState<string | null>(null)
@@ -154,8 +169,44 @@ export default function Home() {
     writeStateCache(data)
   }, [])
 
+  // ---------- Auth ----------
+  useEffect(() => {
+    let alive = true
+    fetch('/api/auth/me', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d: { user: AuthUser | null }) => {
+        if (alive && d?.user) setUser(d.user)
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (alive) setAuthReady(true)
+      })
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  const logout = useCallback(async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' })
+    } catch {
+      /* tetap keluar di sisi klien */
+    }
+    try {
+      localStorage.removeItem(STATE_CACHE_KEY)
+    } catch {
+      /* abaikan */
+    }
+    setUser(null)
+    setState(null)
+    setLoadError(null)
+    setView('home')
+    setSettingsOpen(false)
+  }, [])
+
   const hydratedRef = useRef(false)
   useEffect(() => {
+    if (!user) return
     // Hidrasi instan dari cache perangkat — tampilan langsung terbuka tanpa loading
     const cached = readStateCache()
     if (cached) {
@@ -172,7 +223,7 @@ export default function Home() {
         toast.error(msg)
       }
     })
-  }, [loadState])
+  }, [user, loadState])
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- baca preferensi tersimpan dari localStorage (sistem eksternal)
@@ -608,7 +659,21 @@ export default function Home() {
     [state?.components]
   )
 
-  // ---------- Render: loading & error ----------
+  // ---------- Render: auth gate, loading & error ----------
+  if (!authReady) {
+    return (
+      <div className="flex min-h-dvh justify-center bg-background">
+        <div className="flex h-dvh w-full max-w-[520px] flex-col items-center justify-center gap-3">
+          <span className="h-10 w-10 animate-spin rounded-full border-4 border-lime border-t-transparent" />
+        </div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return <AuthView onAuthed={(u) => setUser(u)} />
+  }
+
   if (loadError && !state) {
     return (
       <div className="flex min-h-dvh justify-center bg-background">
@@ -665,7 +730,7 @@ export default function Home() {
               </span>
               <span className="min-w-0">
                 <span className="block truncate text-[14px] font-extrabold leading-tight text-foreground">
-                  {greeting()}, Irsyad
+                  {greeting()}, {firstName(user.name)}
                 </span>
                 <span className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground">
                   <span className="truncate">{vehicle.name}</span>
@@ -681,7 +746,7 @@ export default function Home() {
                 {dueComponents.length > 0 ? <BellRing size={18} /> : <Bell size={18} />}
               </IconBtn>
               <IconBtn label="Profil & pengaturan" tone="dark" className="h-10 w-10" onClick={() => setSettingsOpen(true)}>
-                <span className="text-[13px] font-extrabold">IR</span>
+                <span className="text-[13px] font-extrabold">{initials(user.name)}</span>
               </IconBtn>
             </div>
           </div>
@@ -947,6 +1012,7 @@ export default function Home() {
               className="fixed inset-0 z-50 overflow-y-auto bg-background"
             >
               <SettingsView
+                user={user}
                 vehicles={state.vehicles}
                 currentVehicleId={vehicle.id}
                 reminder={reminder}
@@ -961,6 +1027,7 @@ export default function Home() {
                 }}
                 onDeleteVehicle={deleteVehicle}
                 onResetData={resetData}
+                onLogout={logout}
                 onBack={() => setSettingsOpen(false)}
               />
             </motion.div>
