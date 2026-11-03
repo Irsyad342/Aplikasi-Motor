@@ -350,7 +350,7 @@ export function ComponentDetail({
               <button
                 type="button"
                 onClick={onOpenService}
-                className="press flex w-full items-center justify-center gap-2 rounded-full bg-ink py-4 text-[15px] font-bold text-background shadow-lg shadow-ink/20 active:scale-[0.98]"
+                className="press flex w-full items-center justify-center gap-2 rounded-full border border-border/60 bg-hero py-4 text-[15px] font-bold text-hero-foreground shadow-lg shadow-black/10 active:scale-[0.98]"
               >
                 <Wrench size={18} />
                 Catat Penggantian / Servis

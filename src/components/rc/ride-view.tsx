@@ -7,7 +7,6 @@
  */
 
 import { useEffect, useMemo, useState } from 'react'
-import { motion } from 'framer-motion'
 import {
   Bike,
   CalendarDays,
@@ -59,7 +58,6 @@ export interface RideViewProps {
 }
 
 const DAY_MS = 86_400_000
-const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1]
 
 export function RideView(props: RideViewProps) {
   const {
@@ -154,23 +152,17 @@ export function RideView(props: RideViewProps) {
     })
   }, [trips, mounted])
 
-  // ---------- Animasi ----------
-  const fade = (delay: number) => ({
-    initial: { opacity: 0, y: 14 },
-    animate: { opacity: 1, y: 0 },
-    transition: { duration: 0.45, delay, ease: EASE },
-  })
-
   // ---------- Gaya tombol outline di atas kartu ink ----------
-  const outlineOnDark = 'border-white/20 bg-transparent text-background hover:bg-white/10'
+  // Catatan: tanpa animasi stagger — konten langsung tampil agar terasa responsif.
+  const outlineOnHero = 'border-white/20 bg-transparent text-hero-foreground hover:bg-white/10'
 
   return (
     <div className="space-y-6">
       {/* ---------- 1. Hero rekam perjalanan ---------- */}
-      <motion.div {...fade(0)}>
+      <div>
         {tracking === null ? (
-          <Card className="rounded-[28px] bg-ink text-background">
-            <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-background/50">
+          <Card className="rounded-[28px] bg-hero text-hero-foreground">
+            <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-hero-foreground/50">
               <Bike size={13} className="shrink-0" />
               <span className="truncate">
                 {vehicle.name}
@@ -178,7 +170,7 @@ export function RideView(props: RideViewProps) {
               </span>
             </div>
             <h2 className="mt-2 text-xl font-extrabold tracking-tight">Rekam Perjalanan</h2>
-            <p className="mt-1 text-[13px] leading-snug text-background/60">
+            <p className="mt-1 text-[13px] leading-snug text-hero-foreground/60">
               Rekam rute & jarak otomatis lewat GPS, atau catat manual.
             </p>
 
@@ -186,7 +178,7 @@ export function RideView(props: RideViewProps) {
               <Btn variant="lime" full onClick={onStartTracking}>
                 <Play size={17} /> Mulai Rekam GPS
               </Btn>
-              <Btn variant="outline" full className={outlineOnDark} onClick={onAddManual}>
+              <Btn variant="outline" full className={outlineOnHero} onClick={onAddManual}>
                 Catat Manual
               </Btn>
             </div>
@@ -199,24 +191,24 @@ export function RideView(props: RideViewProps) {
                 onClick={onToggleAutoTrack}
                 className={cn(
                   'press inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12px] font-bold leading-none transition-colors',
-                  autoTrack ? 'bg-lime text-on-lime' : 'bg-white/10 text-background'
+                  autoTrack ? 'bg-lime text-on-lime' : 'bg-white/10 text-hero-foreground'
                 )}
               >
                 <span
                   className={cn(
                     'h-1.5 w-1.5 rounded-full transition-colors',
-                    autoTrack ? 'bg-ink' : 'bg-background/40'
+                    autoTrack ? 'bg-hero' : 'bg-hero-foreground/40'
                   )}
                 />
                 Lacak Otomatis
               </button>
-              <span className="text-[11px] font-semibold text-background/50">
+              <span className="text-[11px] font-semibold text-hero-foreground/50">
                 Rekam tanpa buka aplikasi
               </span>
             </div>
           </Card>
         ) : (
-          <Card className="overflow-hidden rounded-[28px] bg-ink text-background">
+          <Card className="overflow-hidden rounded-[28px] bg-hero text-hero-foreground">
             <div className="flex items-center justify-between gap-3">
               {locMode === 'gps' && <Pill tone="lime">GPS Aktif</Pill>}
               {locMode === 'sim' && <Pill tone="amber">Mode Simulasi</Pill>}
@@ -226,7 +218,7 @@ export function RideView(props: RideViewProps) {
                   Mencari GPS…
                 </Pill>
               )}
-              <span className="stat-num text-3xl text-background">{elapsed}</span>
+              <span className="stat-num text-3xl text-hero-foreground">{elapsed}</span>
             </div>
 
             <LiveTripMap
@@ -238,14 +230,14 @@ export function RideView(props: RideViewProps) {
             />
 
             <div className="mt-4">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-background/50">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-hero-foreground/50">
                 Jarak
               </p>
               <p className="mt-1 leading-none">
-                <span className="stat-num text-4xl text-background">
+                <span className="stat-num text-4xl text-hero-foreground">
                   {formatKm1(tracking.distance)}
                 </span>
-                <span className="ml-1.5 text-sm font-bold text-background/60">km</span>
+                <span className="ml-1.5 text-sm font-bold text-hero-foreground/60">km</span>
               </p>
             </div>
 
@@ -255,12 +247,12 @@ export function RideView(props: RideViewProps) {
 
             {locMode === 'waiting' && (
               <div className="mt-3 flex flex-col items-center gap-1.5 text-center">
-                <p className="text-[12px] font-semibold text-background/70">
+                <p className="text-[12px] font-semibold text-hero-foreground/70">
                   GPS mencari sinyal… pastikan Anda di luar ruangan
                 </p>
                 {locError && <p className="text-[11px] font-semibold text-warn">{locError}</p>}
                 {(locStatus === 'denied' || locStatus === 'unavailable') && (
-                  <Btn variant="outline" size="sm" className={outlineOnDark} onClick={onRetryLocation}>
+                  <Btn variant="outline" size="sm" className={outlineOnHero} onClick={onRetryLocation}>
                     <RefreshCw size={14} /> Coba Lagi
                   </Btn>
                 )}
@@ -268,10 +260,10 @@ export function RideView(props: RideViewProps) {
             )}
           </Card>
         )}
-      </motion.div>
+      </div>
 
       {/* ---------- 2. Statistik ---------- */}
-      <motion.div {...fade(1)} className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         <StatCard
           icon={<Route size={15} />}
           label="Total"
@@ -293,10 +285,10 @@ export function RideView(props: RideViewProps) {
           unit="x"
           className="p-4 [&_.stat-num]:text-lg"
         />
-      </motion.div>
+      </div>
 
       {/* ---------- 3. Grafik ---------- */}
-      <motion.div {...fade(2)}>
+      <div>
         <SectionTitle title="Aktivitas" />
         {trips.length === 0 ? (
           <EmptyState
@@ -316,10 +308,10 @@ export function RideView(props: RideViewProps) {
             </Card>
           </>
         )}
-      </motion.div>
+      </div>
 
       {/* ---------- 4. Riwayat perjalanan ---------- */}
-      <motion.div {...fade(3)}>
+      <div>
         <SectionTitle title="Riwayat Perjalanan" action="Analitik" onAction={onOpenHistory} />
         {trips.length === 0 ? (
           <EmptyState
@@ -373,7 +365,7 @@ export function RideView(props: RideViewProps) {
             </Btn>
           </>
         )}
-      </motion.div>
+      </div>
     </div>
   )
 }

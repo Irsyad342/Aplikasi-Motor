@@ -68,6 +68,7 @@ export interface ExpenseDTO {
   id: string
   category: string // bensin | parkir | servis | lainnya
   amount: number
+  liters: number | null // jumlah bensin (liter), khusus kategori bensin
   note: string | null
   date: string
 }
@@ -187,6 +188,7 @@ export async function buildState(vehicleId?: string | null): Promise<AppState> {
       id: e.id,
       category: e.category,
       amount: e.amount,
+      liters: e.liters ?? null,
       note: e.note,
       date: e.date.toISOString(),
     })),

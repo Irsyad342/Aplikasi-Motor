@@ -9,6 +9,7 @@ import {
   Bike,
   ChevronDown,
   CircleDollarSign,
+  Fuel,
   Plus,
   Search,
   Wrench,
@@ -472,56 +473,116 @@ export default function Home() {
   )
 
   const deleteTrip = useCallback(
-    async (id: string) => {
-      await api(`/api/trips/${id}`, 'DELETE')
-      await loadState(vehicleId ?? undefined)
-      toast.success('Perjalanan dihapus')
+    (id: string) => {
+      const prev = state
+      // Hapus optimis — daftar langsung diperbarui tanpa menunggu server
+      setState((s) => (s ? { ...s, trips: s.trips.filter((t) => t.id !== id) } : s))
+      void (async () => {
+        try {
+          await api(`/api/trips/${id}`, 'DELETE')
+          toast.success('Perjalanan dihapus')
+        } catch (e) {
+          setState(prev) // gagal → kembalikan seperti semula
+          toast.error(e instanceof Error ? e.message : 'Gagal menghapus perjalanan')
+        }
+      })()
     },
-    [loadState, vehicleId]
+    [state]
   )
 
   const addManualTrip = useCallback(
-    async (data: { distance: number; date: string; note?: string }) => {
+    (data: { distance: number; date: string; note?: string }) => {
       if (!vehicle) return
       const d = new Date(`${data.date}T09:00:00`)
-      await api('/api/trips', 'POST', {
-        vehicleId: vehicle.id,
+      const iso = d.toISOString()
+      const prev = state
+      // Tambah optimis — perjalanan baru langsung muncul, sinkron server di belakang
+      const temp: TripDTO = {
+        id: `tmp-${Date.now()}`,
         distance: data.distance,
         duration: 0,
+        startOdo: vehicle.odometer,
+        endOdo: vehicle.odometer,
         source: 'manual',
-        startedAt: d.toISOString(),
-        endedAt: d.toISOString(),
-      })
-      await loadState(vehicle.id)
-      toast.success('Perjalanan dicatat')
+        path: null,
+        startedAt: iso,
+        endedAt: iso,
+      }
+      setState((s) => (s ? { ...s, trips: [temp, ...s.trips] } : s))
+      void (async () => {
+        try {
+          await api('/api/trips', 'POST', {
+            vehicleId: vehicle.id,
+            distance: data.distance,
+            duration: 0,
+            source: 'manual',
+            startedAt: iso,
+            endedAt: iso,
+          })
+          await loadState(vehicle.id) // ganti entri sementara dengan data asli
+          toast.success('Perjalanan dicatat')
+        } catch (e) {
+          setState(prev) // gagal → hapus entri sementara
+          toast.error(e instanceof Error ? e.message : 'Gagal menyimpan perjalanan')
+        }
+      })()
     },
-    [vehicle, loadState]
+    [state, vehicle, loadState]
   )
 
   const addExpense = useCallback(
-    async (data: { category: string; amount: number; date: string; note?: string }) => {
+    (data: { category: string; amount: number; date: string; note?: string; liters?: number | null }) => {
       if (!vehicle) return
       const d = new Date(`${data.date}T09:00:00`)
-      await api('/api/expenses', 'POST', {
-        vehicleId: vehicle.id,
+      const iso = d.toISOString()
+      const prev = state
+      // Tambah optimis — pengeluaran langsung muncul di daftar
+      const temp: ExpenseDTO = {
+        id: `tmp-${Date.now()}`,
         category: data.category,
         amount: data.amount,
-        date: d.toISOString(),
         note: data.note ?? null,
-      })
-      await loadState(vehicle.id)
-      toast.success('Pengeluaran dicatat')
+        liters: data.liters ?? null,
+        date: iso,
+      }
+      setState((s) => (s ? { ...s, expenses: [temp, ...s.expenses] } : s))
+      void (async () => {
+        try {
+          await api('/api/expenses', 'POST', {
+            vehicleId: vehicle.id,
+            category: data.category,
+            amount: data.amount,
+            date: iso,
+            note: data.note ?? null,
+            liters: data.liters ?? null,
+          })
+          await loadState(vehicle.id) // sinkron data asli dari server
+          toast.success('Pengeluaran dicatat')
+        } catch (e) {
+          setState(prev) // gagal → hapus entri sementara
+          toast.error(e instanceof Error ? e.message : 'Gagal menyimpan pengeluaran')
+        }
+      })()
     },
-    [vehicle, loadState]
+    [state, vehicle, loadState]
   )
 
   const deleteExpense = useCallback(
-    async (id: string) => {
-      await api(`/api/expenses/${id}`, 'DELETE')
-      await loadState(vehicleId ?? undefined)
-      toast.success('Pengeluaran dihapus')
+    (id: string) => {
+      const prev = state
+      // Hapus optimis — UI langsung merespons
+      setState((s) => (s ? { ...s, expenses: s.expenses.filter((e) => e.id !== id) } : s))
+      void (async () => {
+        try {
+          await api(`/api/expenses/${id}`, 'DELETE')
+          toast.success('Pengeluaran dihapus')
+        } catch (e) {
+          setState(prev) // gagal → kembalikan
+          toast.error(e instanceof Error ? e.message : 'Gagal menghapus pengeluaran')
+        }
+      })()
     },
-    [loadState, vehicleId]
+    [state]
   )
 
   const addVehicle = useCallback(
@@ -720,14 +781,8 @@ export default function Home() {
 
         {/* ---------- Konten ---------- */}
         <main className="flex-1 px-5 pb-36">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={view}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.22, ease: 'easeOut' }}
-            >
+          {/* Tanpa transisi antar halaman — pindah tab langsung tampil agar terasa instan */}
+          <div key={view}>
               {view === 'home' && (
                 <HomeView
                   vehicle={vehicle}
@@ -805,6 +860,7 @@ export default function Home() {
               {view === 'history' && (
                 <HistoryView
                   vehicle={vehicle}
+                  components={state.components}
                   records={state.records}
                   trips={state.trips}
                   expenses={state.expenses}
@@ -815,8 +871,7 @@ export default function Home() {
               )}
 
               {view === 'bengkel' && <BengkelView onBack={() => setView('home')} />}
-            </motion.div>
-          </AnimatePresence>
+          </div>
         </main>
 
         {/* Aksi seleksi komponen */}
@@ -1394,6 +1449,14 @@ function ManualTripSheet({
   )
 }
 
+/** Preset pengisian bensin berdasarkan kapasitas tangki (dapat diatur pengguna). */
+const FUEL_PRESETS: Array<{ frac: number; label: string }> = [
+  { frac: 0.25, label: '¼ Tangki' },
+  { frac: 0.5, label: '½ Tangki' },
+  { frac: 0.75, label: '¾ Tangki' },
+  { frac: 1, label: 'Full Tank' },
+]
+
 function ExpenseSheet({
   open,
   onClose,
@@ -1401,10 +1464,18 @@ function ExpenseSheet({
 }: {
   open: boolean
   onClose: () => void
-  onSubmit: (data: { category: string; amount: number; date: string; note?: string }) => Promise<void>
+  onSubmit: (data: {
+    category: string
+    amount: number
+    date: string
+    note?: string
+    liters?: number | null
+  }) => Promise<void> | void
 }) {
   const [category, setCategory] = useState('bensin')
   const [amount, setAmount] = useState('')
+  const [liters, setLiters] = useState('')
+  const [tank, setTank] = useState('5')
   const [date, setDate] = useState(todayInput())
   const [note, setNote] = useState('')
   const [saving, setSaving] = useState(false)
@@ -1413,17 +1484,38 @@ function ExpenseSheet({
     if (open) {
       setCategory('bensin')
       setAmount('')
+      setLiters('')
       setDate(todayInput())
       setNote('')
+      // Kapasitas tangki tersimpan di perangkat — default 5 liter
+      setTank(localStorage.getItem('mm-tank') || '5')
     }
   }, [open])
 
-  const submit = async () => {
+  const tankL = Math.max(1, Math.min(30, Number(tank) || 5))
+
+  const applyPreset = (frac: number) => {
+    const l = Math.round(tankL * frac * 100) / 100
+    setLiters(String(l))
+  }
+
+  const submit = () => {
     const amt = Math.round(Number(amount) || 0)
     if (amt <= 0) return toast.error('Nominal harus lebih dari 0')
+    let ltr: number | null = null
+    if (category === 'bensin' && liters.trim()) {
+      ltr = Math.round(Number(liters) * 100) / 100
+      if (!ltr || ltr <= 0) return toast.error('Jumlah liter tidak valid')
+    }
     setSaving(true)
     try {
-      await onSubmit({ category, amount: amt, date, note: note.trim() || undefined })
+      void onSubmit({
+        category,
+        amount: amt,
+        date,
+        note: note.trim() || undefined,
+        liters: ltr,
+      })
       onClose()
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Gagal menyimpan')
@@ -1433,43 +1525,112 @@ function ExpenseSheet({
   }
 
   const cats = [
-    { key: 'bensin', label: 'Bensin' },
-    { key: 'parkir', label: 'Parkir' },
-    { key: 'servis', label: 'Servis' },
-    { key: 'lainnya', label: 'Lainnya' },
+    { key: 'bensin', label: 'Bensin', icon: Fuel },
+    { key: 'servis', label: 'Servis', icon: Wrench },
   ]
+
+  const ltrNum = Number(liters) || 0
+  const amtNum = Number(amount) || 0
+  const perLiter = ltrNum > 0 && amtNum > 0 ? Math.round(amtNum / ltrNum) : null
 
   return (
     <Sheet open={open} onClose={onClose} title="Tambah Pengeluaran">
       <div className="flex flex-col gap-4">
-        <div className="grid grid-cols-4 gap-2">
-          {cats.map((c) => (
-            <button
-              key={c.key}
-              type="button"
-              onClick={() => setCategory(c.key)}
-              className={`press min-h-11 rounded-2xl border text-[12px] font-bold ${
-                category === c.key ? 'border-lime bg-lime text-on-lime' : 'border-input bg-card text-muted-foreground'
-              }`}
-            >
-              {c.label}
-            </button>
-          ))}
+        <div className="grid grid-cols-2 gap-2">
+          {cats.map((c) => {
+            const Icon = c.icon
+            return (
+              <button
+                key={c.key}
+                type="button"
+                onClick={() => setCategory(c.key)}
+                className={`press inline-flex min-h-11 items-center justify-center gap-1.5 rounded-2xl border text-sm font-bold ${
+                  category === c.key
+                    ? 'border-lime bg-lime text-on-lime'
+                    : 'border-input bg-card text-muted-foreground'
+                }`}
+              >
+                <Icon size={16} /> {c.label}
+              </button>
+            )
+          })}
         </div>
+
+        {category === 'bensin' && (
+          <>
+            <Field label="Berapa liter?" hint={`Kapasitas tangki motor kamu ${tankL.toLocaleString('id-ID')} liter — bisa diubah di bawah`}>
+              <div className="grid grid-cols-4 gap-2">
+                {FUEL_PRESETS.map((p) => {
+                  const l = Math.round(tankL * p.frac * 100) / 100
+                  const active = ltrNum === l
+                  return (
+                    <button
+                      key={p.label}
+                      type="button"
+                      onClick={() => applyPreset(p.frac)}
+                      className={`press flex min-h-11 flex-col items-center justify-center rounded-2xl border px-1 leading-tight ${
+                        active
+                          ? 'border-lime bg-lime text-on-lime'
+                          : 'border-input bg-card text-muted-foreground'
+                      }`}
+                    >
+                      <span className="text-[11px] font-bold">{p.label}</span>
+                      <span className="text-[10px] font-semibold opacity-70">{l.toLocaleString('id-ID')} L</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </Field>
+            <div className="grid grid-cols-2 gap-2">
+              <Field label="Liter">
+                <input
+                  className={inputCls}
+                  inputMode="decimal"
+                  value={liters}
+                  onChange={(e) => setLiters(e.target.value.replace(/[^\d.,]/g, '').replace(',', '.'))}
+                  placeholder="cth. 2,5"
+                />
+              </Field>
+              <Field label="Kapasitas tangki (L)">
+                <input
+                  className={inputCls}
+                  inputMode="numeric"
+                  value={tank}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/[^\d]/g, '')
+                    setTank(v)
+                    try {
+                      localStorage.setItem('mm-tank', v || '5')
+                    } catch {
+                      /* penyimpanan penuh — abaikan */
+                    }
+                  }}
+                  placeholder="5"
+                />
+              </Field>
+            </div>
+          </>
+        )}
+
         <Field label="Nominal (Rp)">
           <input className={inputCls} inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^\d]/g, ''))} placeholder="cth. 20000" />
         </Field>
-        {amount && (
+        {amtNum > 0 && (
           <p className="px-1 text-[13px] font-bold text-foreground">
             <CircleDollarSign size={14} className="mr-1 inline" />
-            {formatRupiah(Number(amount))}
+            {formatRupiah(amtNum)}
+            {perLiter != null && (
+              <span className="ml-2 font-semibold text-muted-foreground">
+                ≈ Rp{formatRupiah(perLiter)}/liter
+              </span>
+            )}
           </p>
         )}
         <Field label="Tanggal">
           <input type="date" className={inputCls} value={date} max={todayInput()} onChange={(e) => setDate(e.target.value)} />
         </Field>
         <Field label="Catatan" hint="Opsional">
-          <input className={inputCls} value={note} onChange={(e) => setNote(e.target.value)} placeholder="cth. Pertalite 2 liter" />
+          <input className={inputCls} value={note} onChange={(e) => setNote(e.target.value)} placeholder={category === 'bensin' ? 'cth. Pertalite di Pertamina' : 'cth. Ganti kampas rem'} />
         </Field>
         <Btn variant="lime" full onClick={submit} disabled={saving}>
           {saving ? 'Menyimpan…' : 'Simpan Pengeluaran'}

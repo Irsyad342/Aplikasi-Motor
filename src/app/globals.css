@@ -50,10 +50,16 @@
   --radius-xl: calc(var(--radius) + 6px);
 }
 
+/* Kartu hero "ink" — token statis: hitam di terang, dioverride charcoal di .dark */
+@theme {
+  --color-hero: #101110;
+  --color-hero-foreground: #f3f3f0;
+}
+
 /*
   MotoMate Design System — "Neon Lime"
   Light: off-white + kartu putih + aksen neon lime
-  Dark : deep black + kartu charcoal + aksen neon lime + efek glow
+  Dark : deep black + kartu charcoal + aksen neon lime (flat, tanpa glow)
 */
 :root {
   --radius: 1.375rem;
@@ -106,6 +112,8 @@
   --ok: #dfff00;
   --warn: #f5c518;
   --danger: #ff6a5c;
+  /* Hero ikut charcoal — tanpa kartu putih menyolok di mode gelap */
+  --color-hero: #262823;
 
   --background: #101110;
   --foreground: #f3f3f0;
@@ -171,31 +179,10 @@
   }
 }
 
-/* ---------- Dark mode: efek glow neon lime ---------- */
-.dark .bg-lime {
-  box-shadow:
-    0 0 20px rgba(223, 255, 0, 0.35),
-    0 0 48px rgba(223, 255, 0, 0.12);
-}
-.dark .text-lime {
-  text-shadow: 0 0 16px rgba(223, 255, 0, 0.45);
-}
-.dark .border-lime {
-  border-color: rgba(223, 255, 0, 0.85);
-  box-shadow: 0 0 14px rgba(223, 255, 0, 0.18);
-}
-.dark .bg-lime\/25,
-.dark .bg-lime\/20,
-.dark .bg-lime\/15 {
-  box-shadow: 0 0 14px rgba(223, 255, 0, 0.1);
-}
-/* Cahaya ambien sangat halus di atas layar (dark mode saja) */
-.dark body {
-  background-image:
-    radial-gradient(1200px 420px at 50% -220px, rgba(223, 255, 0, 0.07), transparent 70%),
-    radial-gradient(800px 300px at 50% 120%, rgba(223, 255, 0, 0.04), transparent 70%);
-  background-attachment: fixed;
-}
+/*
+  Mode gelap: TANPA efek glow — warna flat yang tenang dan konsisten.
+  Aksen lime tetap #dfff00 di kedua tema agar identitas merek tidak berubah.
+*/
 
 /* ---------- Peta (Leaflet): netral tanpa rona biru ---------- */
 .leaflet-container {

@@ -9,7 +9,9 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { motion } from 'framer-motion'
 import {
+  AlertTriangle,
   ArrowLeft,
+  BadgeCheck,
   CircleDollarSign,
   Fuel,
   MoreHorizontal,
@@ -18,8 +20,8 @@ import {
   Trash2,
   Wrench,
 } from 'lucide-react'
-import type { ExpenseDTO, RecordDTO, TripDTO, VehicleDTO } from '@/lib/state'
-import { formatDate, formatDuration, formatKm, formatKm1 } from '@/lib/status'
+import type { ComponentDTO, ExpenseDTO, RecordDTO, TripDTO, VehicleDTO } from '@/lib/state'
+import { formatDate, formatDuration, formatKm, formatKm1, statusLabel, statusOrder, type ComponentStatus } from '@/lib/status'
 import {
   Card,
   EmptyState,
@@ -27,9 +29,11 @@ import {
   LimeBarChart,
   LimeLineChart,
   Pill,
+  ProgressBar,
   SectionTitle,
   StatCard,
   formatRupiah,
+  statusTone,
   type ChartPoint,
 } from '@/components/rc/ui'
 import { ComponentIcon } from '@/components/ridecheck/icons'
@@ -37,6 +41,7 @@ import { cn } from '@/lib/utils'
 
 export interface HistoryViewProps {
   vehicle: VehicleDTO
+  components: ComponentDTO[]
   records: RecordDTO[]
   trips: TripDTO[]
   expenses: ExpenseDTO[]
@@ -111,6 +116,33 @@ function CategoryIcon({ category, size = 18 }: { category: string; size?: number
   return <MoreHorizontal size={size} className={cls} />
 }
 
+// ---------- Analitik keausan komponen ----------
+
+const DAY_MS = 86_400_000
+type HealthRow = ComponentDTO & { health: NonNullable<ComponentDTO['health']> }
+
+function barTone(s: ComponentStatus): 'lime' | 'amber' | 'red' {
+  return s === 'ganti' ? 'red' : s === 'segera' ? 'amber' : 'lime'
+}
+
+/** Kalimat analitik singkat: berapa lama terpasang & sisa umur pakai. */
+function componentSub(c: HealthRow, odometer: number): string {
+  const h = c.health
+  const daysInstalled = Math.max(
+    0,
+    Math.round((Date.now() - new Date(c.lastServiceDate).getTime()) / DAY_MS)
+  )
+  if (c.intervalKm > 0) {
+    if (h.kmRemaining <= 0) {
+      const over = Math.max(0, odometer - c.lastServiceOdo - c.intervalKm)
+      return `Terpasang ${daysInstalled} hari · lewat ${formatKm(over)} km dari batas`
+    }
+    return `Terpasang ${daysInstalled} hari · sisa ${formatKm(h.kmRemaining)} km`
+  }
+  if (h.daysRemaining <= 0) return `Terpasang ${daysInstalled} hari · jatuh tempo`
+  return `Terpasang ${daysInstalled} hari · sisa ${h.daysRemaining} hari`
+}
+
 // ---------- Kerangka kecil ----------
 
 function FadeUp({
@@ -136,6 +168,7 @@ function FadeUp({
 
 export function HistoryView({
   vehicle,
+  components,
   records,
   trips,
   expenses,
@@ -158,6 +191,22 @@ export function HistoryView({
     () => [...expenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
     [expenses]
   )
+
+  // --- Analitik komponen: urut dari yang paling aus / paling mendesak ---
+  const healthRows = useMemo<HealthRow[]>(
+    () =>
+      components
+        .filter((c): c is HealthRow => c.installed && c.health !== null)
+        .sort(
+          (a, b) =>
+            statusOrder(a.health.status) - statusOrder(b.health.status) ||
+            a.health.worstPct - b.health.worstPct
+        ),
+    [components]
+  )
+  const gantiRows = healthRows.filter((c) => c.health.status === 'ganti')
+  const segeraRows = healthRows.filter((c) => c.health.status === 'segera')
+  const litersFmt = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 })
 
   // --- Perhitungan per tab ---
   const serviceCostTotal = records.reduce((acc, r) => acc + (r.cost ?? 0), 0)
@@ -232,6 +281,134 @@ export function HistoryView({
       {/* ================= TAB: PERAWATAN ================= */}
       {tab === 'perawatan' && (
         <div className="space-y-6">
+          {/* ---------- Analitik kondisi komponen ---------- */}
+          <FadeUp delay={0.04}>
+            <section className="space-y-2.5">
+              <SectionTitle title="Kondisi Komponen" />
+              {healthRows.length === 0 ? (
+                <EmptyState
+                  icon={<Wrench size={22} />}
+                  title="Belum ada komponen terpasang"
+                  desc="Tambahkan komponen lewat menu Perawatan untuk melihat analitik keausannya di sini."
+                />
+              ) : (
+                <>
+                  {/* Sorotan: komponen yang paling perlu diganti */}
+                  {gantiRows.length > 0 ? (
+                    <Card className="border-danger/30 bg-danger/5">
+                      <div className="flex items-start gap-2.5">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-danger/15 text-danger">
+                          <AlertTriangle size={16} />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-sm font-extrabold text-foreground">
+                            {gantiRows.length} komponen sudah jatuh tempo
+                          </p>
+                          <p className="mt-0.5 text-[12px] leading-snug text-muted-foreground">
+                            Prioritaskan ganti{' '}
+                            <span className="font-bold text-foreground">
+                              {gantiRows.slice(0, 2).map((c) => c.name).join(' & ')}
+                              {gantiRows.length > 2 ? ` +${gantiRows.length - 2} lainnya` : ''}
+                            </span>{' '}
+                            agar motor tetap prima.
+                          </p>
+                        </div>
+                      </div>
+                    </Card>
+                  ) : segeraRows.length > 0 ? (
+                    <Card className="border-warn/40 bg-warn/10">
+                      <div className="flex items-start gap-2.5">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-warn/20 text-warn">
+                          <AlertTriangle size={16} />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-sm font-extrabold text-foreground">
+                            {segeraRows.length} komponen mendekati batas ganti
+                          </p>
+                          <p className="mt-0.5 text-[12px] leading-snug text-muted-foreground">
+                            Siapkan penggantian untuk{' '}
+                            <span className="font-bold text-foreground">
+                              {segeraRows.slice(0, 2).map((c) => c.name).join(' & ')}
+                              {segeraRows.length > 2 ? ` +${segeraRows.length - 2} lainnya` : ''}
+                            </span>{' '}
+                            sebelum melewati jadwal.
+                          </p>
+                        </div>
+                      </div>
+                    </Card>
+                  ) : (
+                    <Card className="border-lime/50 bg-lime/10">
+                      <div className="flex items-start gap-2.5">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-lime text-on-lime">
+                          <BadgeCheck size={16} />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-sm font-extrabold text-foreground">
+                            Semua komponen sehat
+                          </p>
+                          <p className="mt-0.5 text-[12px] text-muted-foreground">
+                            Tidak ada yang perlu diganti sekarang — pertahankan rutinitas servis.
+                          </p>
+                        </div>
+                      </div>
+                    </Card>
+                  )}
+
+                  {/* Daftar keausan — paling aus di atas */}
+                  <Card padded={false} className="overflow-hidden">
+                    <div className="divide-y divide-border/60">
+                      {healthRows.map((c, i) => {
+                        const h = c.health
+                        const wear = Math.max(0, Math.min(100, Math.round((1 - h.worstPct) * 100)))
+                        return (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => onOpenDetail(c.id)}
+                            className="press block w-full px-4 py-3.5 text-left transition-colors hover:bg-muted/40"
+                          >
+                            <div className="flex items-center gap-3">
+                              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                                <ComponentIcon icon={c.icon} size={18} />
+                              </span>
+                              <div className="min-w-0 flex-1">
+                                <p className="flex items-center gap-1.5 text-[14px] font-bold text-foreground">
+                                  <span className="truncate">{c.name}</span>
+                                </p>
+                                <p className="mt-0.5 truncate text-[12px] text-muted-foreground">
+                                  {componentSub(c, vehicle.odometer)}
+                                </p>
+                              </div>
+                              {i === 0 && h.status !== 'sehat' ? (
+                                <Pill tone={statusTone(h.status)} className="shrink-0">
+                                  Paling prioritas
+                                </Pill>
+                              ) : (
+                                <Pill tone={statusTone(h.status)} className="shrink-0">
+                                  {statusLabel(h.status)}
+                                </Pill>
+                              )}
+                            </div>
+                            <div className="mt-2.5 flex items-center gap-2">
+                              <ProgressBar
+                                pct={wear / 100}
+                                tone={barTone(h.status)}
+                                className="h-1.5 flex-1"
+                              />
+                              <span className="stat-num shrink-0 text-[11px] text-muted-foreground">
+                                {wear}% terpakai
+                              </span>
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </Card>
+                </>
+              )}
+            </section>
+          </FadeUp>
+
           <FadeUp delay={0.06}>
             <div className="grid grid-cols-2 gap-3">
               <StatCard icon={<Wrench size={16} />} label="Total Servis" value={records.length} />
@@ -449,6 +626,11 @@ export function HistoryView({
                         <div className="min-w-0 flex-1">
                           <p className="text-[14px] font-bold text-foreground">
                             {categoryLabel(e.category)}
+                            {e.liters != null && (
+                              <span className="ml-1.5 font-semibold text-muted-foreground">
+                                · {litersFmt.format(e.liters)} L
+                              </span>
+                            )}
                           </p>
                           <p className="mt-0.5 truncate text-[12px] text-muted-foreground">
                             {e.note ?? formatDate(e.date)}

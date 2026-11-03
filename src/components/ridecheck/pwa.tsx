@@ -64,7 +64,7 @@ export function InstallPrompt() {
   if (hidden || !deferred) return null
 
   return (
-    <div className="fixed inset-x-4 bottom-24 z-[45] mx-auto flex max-w-[488px] items-center gap-2.5 rounded-2xl bg-ink p-3 text-background shadow-xl">
+    <div className="fixed inset-x-4 bottom-24 z-[45] mx-auto flex max-w-[488px] items-center gap-2.5 rounded-2xl border border-border/60 bg-hero p-3 text-hero-foreground shadow-xl">
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-lime text-on-lime">
         <Download size={17} />
       </span>
@@ -87,7 +87,7 @@ export function InstallPrompt() {
         type="button"
         onClick={() => setHidden(true)}
         aria-label="Tutup"
-        className="shrink-0 rounded-full bg-background/10 p-1.5"
+        className="shrink-0 rounded-full bg-white/10 p-1.5"
       >
         <X size={13} />
       </button>

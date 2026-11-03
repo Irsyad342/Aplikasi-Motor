@@ -52,6 +52,14 @@ export async function POST(req: NextRequest) {
     if (amount <= 0) {
       return NextResponse.json({ error: 'Nominal harus lebih dari 0' }, { status: 400 })
     }
+    // Jumlah liter (opsional, khusus bensin) — 0.1..50 L
+    let liters: number | null = null
+    if (body.liters != null && body.liters !== '') {
+      liters = Math.round(Number(body.liters) * 100) / 100
+      if (!Number.isFinite(liters) || liters <= 0 || liters > 50) {
+        return NextResponse.json({ error: 'Jumlah liter tidak valid' }, { status: 400 })
+      }
+    }
     const date = body.date ? new Date(body.date) : new Date()
     if (isNaN(date.getTime())) {
       return NextResponse.json({ error: 'Tanggal tidak valid' }, { status: 400 })
@@ -62,6 +70,7 @@ export async function POST(req: NextRequest) {
         vehicleId,
         category,
         amount,
+        liters,
         date,
         note: body.note ? String(body.note).trim().slice(0, 200) || null : null,
       },
