@@ -25,9 +25,9 @@ const RADII = [2, 5, 10, 25, 50]
 function FadeUp({ children, delay = 0, className }: { children: ReactNode; delay?: number; className?: string }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: 0.28, delay, ease: [0.22, 1, 0.36, 1] }}
       className={className}
     >
       {children}
@@ -152,7 +152,7 @@ export function BengkelView({ onBack }: { onBack?: () => void }) {
   return (
     <div className="pb-6">
       {/* Header ringkas: tombol kembali + judul + status GPS dalam satu baris */}
-      <FadeUp className="px-4 pb-3 pt-3">
+      <FadeUp className="px-4 pb-2.5 pt-3">
         <div className="flex items-center gap-3">
           {onBack && (
             <button
@@ -214,7 +214,7 @@ export function BengkelView({ onBack }: { onBack?: () => void }) {
 
       {/* Peringatan di luar Pulau Jawa */}
       {outsideJava && !activeCity && (
-        <div className="mx-4 mb-3 flex items-start gap-2.5 rounded-2xl bg-warn/10 p-3.5 ring-1 ring-warn/30">
+        <div className="mx-4 mb-2.5 flex items-start gap-2.5 rounded-2xl bg-warn/10 p-3 ring-1 ring-warn/30">
           <AlertTriangle size={16} className="mt-0.5 shrink-0 text-warn" />
           <div className="text-xs leading-relaxed text-warn">
             <p className="font-bold">Lokasimu di luar Pulau Jawa</p>
@@ -225,55 +225,56 @@ export function BengkelView({ onBack }: { onBack?: () => void }) {
         </div>
       )}
 
-      {/* Pencarian */}
-      <FadeUp delay={0.05} className="px-4 pt-1">
-        <div className="relative">
-          <Search
-            size={17}
-            className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground"
-          />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Cari nama bengkel atau merek…"
-            aria-label="Cari bengkel di Pulau Jawa"
-            className="w-full rounded-full bg-card py-3 pl-11 pr-10 text-base text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-ring/40"
-          />
-          {query && (
-            <button
-              type="button"
-              onClick={() => setQuery('')}
-              aria-label="Hapus pencarian"
-              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-muted p-1 text-muted-foreground"
-            >
-              <X size={13} />
-            </button>
-          )}
+      {/* Pencarian + pilih kota — digabung satu baris agar ringkas */}
+      <FadeUp delay={0.04} className="relative px-4 pt-0.5">
+        <div className="flex items-center gap-2">
+          <div className="relative min-w-0 flex-1">
+            <Search
+              size={16}
+              className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+            />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Cari bengkel atau merek…"
+              aria-label="Cari bengkel di Pulau Jawa"
+              className="w-full rounded-full bg-card py-2.5 pl-10 pr-9 text-sm text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-ring/40"
+            />
+            {query && (
+              <button
+                type="button"
+                onClick={() => setQuery('')}
+                aria-label="Hapus pencarian"
+                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-muted p-1 text-muted-foreground"
+              >
+                <X size={12} />
+              </button>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => setCityListOpen((o) => !o)}
+            className="press flex shrink-0 items-center gap-1.5 rounded-full bg-card px-3.5 py-2.5 shadow-sm"
+            aria-expanded={cityListOpen}
+            aria-label="Pilih kota"
+          >
+            <MapIcon size={14} className="shrink-0 text-foreground" />
+            <span className="max-w-[84px] truncate text-[13px] font-bold text-foreground">
+              {activeCity ?? 'Terdekat'}
+            </span>
+            <ChevronDown
+              size={14}
+              className={cn('shrink-0 text-muted-foreground transition-transform', cityListOpen && 'rotate-180')}
+            />
+          </button>
         </div>
-      </FadeUp>
-
-      {/* Pilihan kota (Pulau Jawa) */}
-      <FadeUp delay={0.08} className="relative px-4 pt-2.5">
-        <button
-          type="button"
-          onClick={() => setCityListOpen((o) => !o)}
-          className="flex w-full items-center justify-between rounded-2xl bg-card px-4 py-2.5 shadow-sm"
-          aria-expanded={cityListOpen}
-        >
-          <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
-            <MapIcon size={15} className="text-foreground" />
-            {activeCity ?? 'Terdekat dari lokasiku'}
-            {!activeCity && !userPos && !loc.status.startsWith('den') && loc.status !== 'unavailable' && (
-              <span className="text-[10px] font-medium text-muted-foreground">· mencari GPS…</span>
-            )}
-            {!activeCity && (loc.status === 'denied' || loc.status === 'unavailable') && (
-              <span className="text-[10px] font-medium text-warn">· GPS nonaktif</span>
-            )}
-          </span>
-          <ChevronDown size={16} className={cn('text-muted-foreground transition-transform', cityListOpen && 'rotate-180')} />
-        </button>
         {cityListOpen && (
-          <div className="absolute inset-x-4 z-30 mt-2 max-h-64 overflow-y-auto rounded-2xl bg-card p-1.5 shadow-xl ring-1 ring-border">
+          <motion.div
+            initial={{ opacity: 0, y: -6, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.18, ease: 'easeOut' }}
+            className="absolute right-4 top-full z-30 mt-2 max-h-64 w-60 overflow-y-auto rounded-2xl bg-card p-1.5 shadow-xl ring-1 ring-border"
+          >
             <button
               type="button"
               onClick={() => {
@@ -309,13 +310,13 @@ export function BengkelView({ onBack }: { onBack?: () => void }) {
                 <span className="text-[10px] font-normal text-muted-foreground">{c.province}</span>
               </button>
             ))}
-          </div>
+          </motion.div>
         )}
       </FadeUp>
 
-      {/* Mode + filter */}
-      <FadeUp delay={0.11} className="flex items-center gap-2 px-4 pt-2.5">
-        <div className="flex flex-1 items-center gap-1.5 rounded-full bg-muted p-1">
+      {/* Mode + filter — satu baris ringkas */}
+      <FadeUp delay={0.08} className="flex items-center gap-2 px-4 pt-2">
+        <div className="flex flex-1 items-center gap-1 rounded-full bg-muted p-1">
           {(
             [
               { v: 'daftar' as Mode, label: 'Daftar', icon: List },
@@ -327,13 +328,13 @@ export function BengkelView({ onBack }: { onBack?: () => void }) {
               type="button"
               onClick={() => setMode(m.v)}
               className={cn(
-                'flex flex-1 items-center justify-center gap-1.5 rounded-full py-1.5 text-xs transition-all',
+                'flex flex-1 items-center justify-center gap-1 rounded-full py-1 text-xs transition-all',
                 mode === m.v
                   ? 'bg-card font-bold text-foreground shadow-sm'
                   : 'font-medium text-muted-foreground'
               )}
             >
-              <m.icon size={13} />
+              <m.icon size={12} />
               {m.label}
             </button>
           ))}
@@ -355,29 +356,26 @@ export function BengkelView({ onBack }: { onBack?: () => void }) {
         ))}
       </FadeUp>
 
-      {/* Chip radius */}
-      {!query && (
-        <FadeUp delay={0.14} className="flex items-center gap-1.5 px-4 pt-2.5">
-          <span className="text-[11px] font-semibold text-muted-foreground">Radius:</span>
-          {RADII.map((r) => (
-            <button
-              key={r}
-              type="button"
-              onClick={() => setRadiusKm(r)}
-              className={cn(
-                'rounded-full px-2.5 py-1 text-[11px] font-bold transition-colors',
-                radiusKm === r ? 'bg-lime text-on-lime' : 'bg-card text-muted-foreground shadow-sm'
-              )}
-            >
-              {r} km
-            </button>
-          ))}
-        </FadeUp>
-      )}
-
-      {/* Info jumlah hasil + status sumber data */}
-      <FadeUp delay={0.17} className="px-4 pt-2.5">
-        <p className="flex flex-wrap items-center gap-x-1.5 text-[11px] font-medium text-muted-foreground">
+      {/* Radius + jumlah hasil — digabung satu baris */}
+      <FadeUp delay={0.11} className="flex items-center gap-2 px-4 pt-2">
+        {!query && (
+          <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
+            {RADII.map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => setRadiusKm(r)}
+                className={cn(
+                  'shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold transition-colors',
+                  radiusKm === r ? 'bg-lime text-on-lime' : 'bg-card text-muted-foreground shadow-sm'
+                )}
+              >
+                {r} km
+              </button>
+            ))}
+          </div>
+        )}
+        <p className="flex shrink-0 items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
           {live ? (
             <span className="inline-flex items-center gap-1 text-ok">
               <MapPin size={11} />
@@ -386,23 +384,19 @@ export function BengkelView({ onBack }: { onBack?: () => void }) {
           ) : (
             <span className="inline-flex items-center gap-1 text-warn">
               <WifiOff size={11} />
-              Mode demo
+              Demo
             </span>
           )}
           <span aria-hidden="true">·</span>
-          <span>
-            {loading
-              ? 'memuat bengkel dari peta…'
-              : query
-                ? `${shown.length} hasil untuk “${query}” · dari ${refLabel}`
-                : `${shown.length} bengkel dalam radius ${radiusKm} km dari ${refLabel}`}
+          <span className="whitespace-nowrap">
+            {loading ? 'memuat…' : `${shown.length} bengkel`}
           </span>
         </p>
       </FadeUp>
 
       {/* Konten */}
       {mode === 'peta' ? (
-        <div className="px-4 pt-3">
+        <div className="px-4 pt-2.5">
           <BengkelMap
             center={[refPoint.lat, refPoint.lng]}
             radiusKm={radiusKm}
@@ -411,7 +405,7 @@ export function BengkelView({ onBack }: { onBack?: () => void }) {
             onSelect={(id) => setSelectedId((prev) => (prev === id ? null : id))}
             userPos={userPos && isInJava(userPos.lat, userPos.lng) ? userPos : null}
             accuracy={loc.accuracy}
-            className="h-[380px] w-full"
+            className="h-[400px] w-full"
           />
           {selected && (
             <div className="-mt-8 px-3 pb-1">
@@ -430,12 +424,12 @@ export function BengkelView({ onBack }: { onBack?: () => void }) {
           )}
         </div>
       ) : (
-        <div className="space-y-3 px-4 pt-3">
+        <div className="space-y-2.5 px-4 pt-2.5">
           {loading ? (
             [...Array(4)].map((_, i) => (
               <div key={i} className="animate-pulse rounded-3xl bg-card p-4 shadow-sm">
                 <div className="flex gap-3">
-                  <div className="h-12 w-12 shrink-0 rounded-2xl bg-muted" />
+                  <div className="h-11 w-11 shrink-0 rounded-2xl bg-muted" />
                   <div className="flex-1 space-y-2 py-1">
                     <div className="h-3.5 w-3/4 rounded-full bg-muted" />
                     <div className="h-3 w-1/2 rounded-full bg-muted" />
@@ -484,17 +478,15 @@ function BengkelCard({
   const dist = distanceKm ?? distanceFrom(b, refPoint)
   return (
     <motion.article
-      initial={{ opacity: 0, y: 14 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{
-        duration: 0.32,
-        delay: compact ? 0 : Math.min(index * 0.04, 0.28),
+        duration: 0.28,
+        delay: compact ? 0 : Math.min(index * 0.035, 0.24),
         ease: [0.22, 1, 0.36, 1],
       }}
-      className={cn(
-        'rounded-3xl bg-card shadow-sm',
-        compact ? 'p-4' : 'p-4'
-      )}
+      whileTap={compact ? undefined : { scale: 0.99 }}
+      className="rounded-3xl bg-card p-3.5 shadow-sm"
     >
       {onClose && (
         <div className="mb-1 flex justify-end">
@@ -511,19 +503,19 @@ function BengkelCard({
       <div className="flex items-start gap-3">
         <span
           className={cn(
-            'flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl',
+            'flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl',
             b.type === 'resmi' ? 'bg-lime/15' : 'bg-muted'
           )}
         >
           {b.type === 'resmi' ? (
-            <Building2 size={22} className="text-foreground" />
+            <Building2 size={20} className="text-foreground" />
           ) : (
-            <Wrench size={22} className="text-muted-foreground" />
+            <Wrench size={20} className="text-muted-foreground" />
           )}
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <h2 className="text-sm font-bold leading-snug text-foreground">{b.name}</h2>
+            <h2 className="text-[13.5px] font-bold leading-snug text-foreground">{b.name}</h2>
             <span
               className={cn(
                 'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold',
@@ -533,7 +525,7 @@ function BengkelCard({
               {b.type === 'resmi' ? 'Resmi' : 'Umum'}
             </span>
           </div>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">
+          <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
             {b.brand}
             {b.city ? ` · ${b.city}` : ''}
           </p>
@@ -543,7 +535,7 @@ function BengkelCard({
                 <Star size={13} className="fill-warn text-warn" />
                 {b.rating}
               </span>
-              <span className="text-[11px] text-muted-foreground">({b.reviews} ulasan)</span>
+              <span className="text-[11px] text-muted-foreground">({b.reviews})</span>
               <span className="text-[11px] font-bold text-foreground">· {formatDistance(dist)}</span>
             </div>
           ) : (
@@ -553,23 +545,10 @@ function BengkelCard({
       </div>
 
       {b.address && (
-        <p className="mt-2.5 text-xs leading-relaxed text-muted-foreground">{b.address}</p>
+        <p className="mt-2 line-clamp-1 text-xs leading-relaxed text-muted-foreground">{b.address}</p>
       )}
 
-      {b.services.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {b.services.slice(0, 3).map((s) => (
-            <span
-              key={s}
-              className="rounded-full bg-muted px-2.5 py-1 text-[10px] font-semibold text-muted-foreground"
-            >
-              {s}
-            </span>
-          ))}
-        </div>
-      )}
-
-      <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
+      <div className="mt-2.5 flex items-center justify-between border-t border-border pt-2.5">
         <span
           className={cn(
             'text-xs font-bold',

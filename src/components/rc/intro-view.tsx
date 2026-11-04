@@ -2,10 +2,13 @@
 
 /**
  * IntroView — perkenalan MotoMate (bisa digeser / swipe).
- * • Tanpa badge sparkle — langsung ke konten, ruang terpakai maksimal.
- * • Slide mengisi tinggi layar (tidak ada area kosong besar di bawah).
- * • Navigasi: tombol Lanjut, swipe/drag kiri-kanan, dan klik indikator.
- * • Slide terakhir berisi preferensi awal: tema tampilan & pengingat otomatis.
+ * • Setiap slide terisi penuh: tidak ada ruang kosong besar, semua bagian
+ *   disebar rapi (justify-evenly) dan diisi elemen bermakna.
+ * • Slide 1: chip fitur mini mengisi bagian tengah.
+ * • Slide 2: kartu fitur melebar mengisi tinggi kartu.
+ * • Slide 3: pratinjau tema visual (bukan tombol polos) + toggle pengingat,
+ *   tersebar merata — minimalis tapi tidak kosong.
+ * • Animasi halus & ringan: stagger masuk, hover lembut, indikator spring.
  * Ditampilkan sekali untuk pengguna baru (localStorage 'mm-intro'),
  * dan bisa diputar ulang dari halaman login.
  */
@@ -16,9 +19,11 @@ import { useTheme } from 'next-themes'
 import {
   ArrowLeft,
   ArrowRight,
-  Bike,
   Bell,
+  Bike,
+  Check,
   CircleDollarSign,
+  Lightbulb,
   Route,
   ShieldCheck,
   SunMoon,
@@ -43,20 +48,88 @@ const slideVariants = {
 
 /** item muncul berurutan */
 const stagger = {
-  center: { transition: { staggerChildren: 0.07, delayChildren: 0.08 } },
+  center: { transition: { staggerChildren: 0.06, delayChildren: 0.06 } },
   exit: { transition: { staggerChildren: 0.02 } },
 }
 
 const rise = {
-  enter: { opacity: 0, y: 16 },
-  center: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] as const } },
+  enter: { opacity: 0, y: 14 },
+  center: { opacity: 1, y: 0, transition: { duration: 0.38, ease: [0.22, 1, 0.36, 1] as const } },
   exit: { opacity: 0, y: -8, transition: { duration: 0.15 } },
+}
+
+/** kartu slide — dipakai ketiga slide agar konsisten */
+const cardCls =
+  'absolute inset-0 flex cursor-grab flex-col overflow-hidden rounded-[32px] border border-border/60 bg-card p-5 active:cursor-grabbing sm:p-7'
+
+function SwipeSection({
+  k,
+  dir,
+  onSwipeLeft,
+  onSwipeRight,
+  children,
+}: {
+  k: string
+  dir: number
+  onSwipeLeft?: () => void
+  onSwipeRight?: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <motion.section
+      key={k}
+      custom={dir}
+      variants={slideVariants}
+      initial="enter"
+      animate="center"
+      exit="exit"
+      transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+      drag="x"
+      dragConstraints={{ left: 0, right: 0 }}
+      dragElastic={0.16}
+      onDragEnd={(_, info) => {
+        if (info.offset.x < -56) onSwipeLeft?.()
+        else if (info.offset.x > 56) onSwipeRight?.()
+      }}
+      className={cardCls}
+    >
+      {children}
+    </motion.section>
+  )
+}
+
+/* ---------- pratinjau mini untuk tiap tema ---------- */
+function ThemePreview({ value }: { value: 'light' | 'dark' | 'system' }) {
+  // imitasi layar aplikasi: app bar + baris konten + aksi lime
+  return (
+    <span
+      className={cn(
+        'relative flex h-[72px] w-full flex-col gap-1 overflow-hidden rounded-xl p-2 ring-1',
+        value === 'light' && 'bg-white text-ink ring-black/10',
+        value === 'dark' && 'bg-ink text-[#f3f3f0] ring-white/10',
+        value === 'system' && 'bg-white text-ink ring-black/10'
+      )}
+    >
+      {/* app bar palsu */}
+      <span className="flex items-center gap-1.5">
+        <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-lime" />
+        <span className="h-1.5 w-1/2 rounded-full bg-current opacity-60" />
+      </span>
+      <span className="h-1.5 w-3/4 rounded-full bg-current opacity-40" />
+      <span className="h-1.5 w-2/3 rounded-full bg-current opacity-25" />
+      <span className="mt-auto h-4 w-full rounded-md bg-lime" />
+      {value === 'system' && (
+        <span aria-hidden="true" className="absolute inset-y-0 right-0 w-1/2 bg-ink" />
+      )}
+    </span>
+  )
 }
 
 export function IntroView({ onDone }: { onDone: () => void }) {
   const [slide, setSlide] = useState(0)
   const [dir, setDir] = useState(1)
-  const { setTheme } = useTheme()
+  const { setTheme: applyTheme } = useTheme()
+  const [theme, setThemeState] = useState<'light' | 'dark' | 'system'>('system')
   const [reminder, setReminder] = useState(true)
   const last = slide === SLIDE_COUNT - 1
 
@@ -68,6 +141,11 @@ export function IntroView({ onDone }: { onDone: () => void }) {
       /* penyimpanan penuh — abaikan */
     }
     onDone()
+  }
+
+  function pickTheme(v: 'light' | 'dark' | 'system') {
+    setThemeState(v)
+    applyTheme(v)
   }
 
   const go = useCallback(
@@ -122,27 +200,11 @@ export function IntroView({ onDone }: { onDone: () => void }) {
         {/* Isi slide — mengisi sisa tinggi layar */}
         <div className="relative mt-4 flex-1">
           <AnimatePresence mode="wait" custom={dir} initial={false}>
+            {/* ---------- SLIDE 1 — perkenalan ---------- */}
             {slide === 0 && (
-              <motion.section
-                key="s0"
-                custom={dir}
-                variants={slideVariants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
-                drag="x"
-                dragConstraints={{ left: 0, right: 0 }}
-                dragElastic={0.16}
-                onDragEnd={(_, info) => {
-                  if (info.offset.x < -56) next()
-                  else if (info.offset.x > 56) back()
-                }}
-                className="absolute inset-0 flex cursor-grab flex-col overflow-hidden rounded-[32px] border border-border/60 bg-card p-6 active:cursor-grabbing sm:p-7"
-              >
+              <SwipeSection k="s0" dir={dir} onSwipeLeft={next} onSwipeRight={back}>
                 <motion.div variants={stagger} initial="enter" animate="center" exit="exit" className="flex flex-1 flex-col">
-                  {/* Komposisi ikon fitur — menggantikan badge sparkle */}
-                  <motion.div variants={rise} className="flex items-center justify-center py-2">
+                  <motion.div variants={rise} className="flex items-center justify-center pt-1">
                     <div className="relative">
                       {/* cincin dekoratif */}
                       <motion.span
@@ -151,8 +213,8 @@ export function IntroView({ onDone }: { onDone: () => void }) {
                         animate={{ rotate: 360 }}
                         transition={{ duration: 26, ease: 'linear', repeat: Infinity }}
                       />
-                      <span className="relative flex h-20 w-20 items-center justify-center rounded-[26px] bg-lime shadow-[0_10px_30px_rgba(163,230,53,0.35)]">
-                        <Bike size={38} className="text-on-lime" strokeWidth={2} />
+                      <span className="relative flex h-[72px] w-[72px] items-center justify-center rounded-[24px] bg-lime shadow-[0_10px_30px_rgba(163,230,53,0.35)]">
+                        <Bike size={36} className="text-on-lime" strokeWidth={2} />
                       </span>
                       {/* chip ikon mengambang */}
                       <motion.span
@@ -181,7 +243,7 @@ export function IntroView({ onDone }: { onDone: () => void }) {
 
                   <motion.h1
                     variants={rise}
-                    className="mt-7 text-center text-[27px] font-extrabold leading-tight tracking-tight text-foreground"
+                    className="mt-6 text-center text-[26px] font-extrabold leading-tight tracking-tight text-foreground"
                   >
                     Teman Setia
                     <br />
@@ -189,44 +251,70 @@ export function IntroView({ onDone }: { onDone: () => void }) {
                   </motion.h1>
                   <motion.p
                     variants={rise}
-                    className="mx-auto mt-3 max-w-[300px] text-center text-[14px] leading-relaxed text-muted-foreground"
+                    className="mx-auto mt-2.5 max-w-[300px] text-center text-[13.5px] leading-relaxed text-muted-foreground"
                   >
                     MotoMate membantu kamu merawat motor tanpa ribet — tahu kapan
                     komponen perlu diganti, mencatat perjalanan, dan mengontrol
                     pengeluaran.
                   </motion.p>
 
-                  <motion.div variants={rise} className="mt-auto pt-6">
-                    <div className="flex items-center gap-3 rounded-2xl bg-muted px-4 py-3.5">
+                  {/* pengisi tengah: 3 chip fitur + catatan keamanan */}
+                  <div className="flex flex-1 flex-col justify-evenly py-4">
+                    <motion.div variants={rise} className="grid grid-cols-3 gap-2.5">
+                      {(
+                        [
+                          { icon: Wrench, label: 'Komponen' },
+                          { icon: Route, label: 'Perjalanan' },
+                          { icon: CircleDollarSign, label: 'Biaya' },
+                        ] as const
+                      ).map((c, i) => {
+                        const Icon = c.icon
+                        return (
+                          <motion.div
+                            key={c.label}
+                            animate={{ y: [0, -3, 0] }}
+                            transition={{
+                              duration: 2.4 + i * 0.3,
+                              repeat: Infinity,
+                              ease: 'easeInOut',
+                              delay: i * 0.35,
+                            }}
+                            className="flex flex-col items-center gap-1.5 rounded-2xl border border-border/50 bg-background/60 px-2 py-3"
+                          >
+                            <span
+                              className={cn(
+                                'flex h-9 w-9 items-center justify-center rounded-xl',
+                                i === 0 ? 'bg-lime text-on-lime' : 'bg-muted text-foreground'
+                              )}
+                            >
+                              <Icon size={16} />
+                            </span>
+                            <span className="text-[11px] font-extrabold text-foreground">
+                              {c.label}
+                            </span>
+                          </motion.div>
+                        )
+                      })}
+                    </motion.div>
+
+                    <motion.div
+                      variants={rise}
+                      className="flex items-center gap-3 rounded-2xl bg-muted px-4 py-3.5"
+                    >
                       <ShieldCheck size={18} className="shrink-0 text-foreground" />
                       <p className="text-[12px] font-semibold leading-snug text-muted-foreground">
                         Datamu tersimpan aman di akunmu sendiri — tidak ada data
                         contoh, semua mulai bersih.
                       </p>
-                    </div>
-                  </motion.div>
+                    </motion.div>
+                  </div>
                 </motion.div>
-              </motion.section>
+              </SwipeSection>
             )}
 
+            {/* ---------- SLIDE 2 — fitur ---------- */}
             {slide === 1 && (
-              <motion.section
-                key="s1"
-                custom={dir}
-                variants={slideVariants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
-                drag="x"
-                dragConstraints={{ left: 0, right: 0 }}
-                dragElastic={0.16}
-                onDragEnd={(_, info) => {
-                  if (info.offset.x < -56) next()
-                  else if (info.offset.x > 56) back()
-                }}
-                className="absolute inset-0 flex cursor-grab flex-col overflow-hidden rounded-[32px] border border-border/60 bg-card p-6 active:cursor-grabbing sm:p-7"
-              >
+              <SwipeSection k="s1" dir={dir} onSwipeLeft={next} onSwipeRight={back}>
                 <motion.div variants={stagger} initial="enter" animate="center" exit="exit" className="flex flex-1 flex-col">
                   <motion.h1
                     variants={rise}
@@ -234,11 +322,12 @@ export function IntroView({ onDone }: { onDone: () => void }) {
                   >
                     Apa saja isinya?
                   </motion.h1>
-                  <motion.p variants={rise} className="mt-1.5 text-[13px] text-muted-foreground">
-                    Geser untuk melihat — tiga fitur utama yang siap membantu.
+                  <motion.p variants={rise} className="mt-1 text-[13px] text-muted-foreground">
+                    Tiga fitur utama yang siap membantu tiap hari.
                   </motion.p>
 
-                  <div className="flex flex-1 flex-col justify-center gap-3.5 py-4">
+                  {/* kartu fitur melebar — tiap kartu mengisi tinggi secara proporsional */}
+                  <div className="flex flex-1 flex-col gap-3 pt-3.5">
                     {(
                       [
                         {
@@ -263,18 +352,20 @@ export function IntroView({ onDone }: { onDone: () => void }) {
                         <motion.div
                           key={f.title}
                           variants={rise}
-                          whileHover={{ x: 4 }}
-                          className="flex items-start gap-3.5 rounded-2xl border border-border/50 p-4"
+                          whileHover={{ y: -2 }}
+                          whileTap={{ scale: 0.985 }}
+                          className="flex flex-1 items-center gap-3.5 rounded-2xl border border-border/50 px-4"
                         >
-                          <span
+                          <motion.span
+                            animate={i === 0 ? { rotate: [0, -8, 0] } : undefined}
+                            transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
                             className={cn(
-                              'flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-foreground',
-                              i === 0 && 'bg-lime text-on-lime',
-                              i !== 0 && 'bg-muted'
+                              'flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl',
+                              i === 0 ? 'bg-lime text-on-lime' : 'bg-muted text-foreground'
                             )}
                           >
-                            <Icon size={19} />
-                          </span>
+                            <Icon size={20} />
+                          </motion.span>
                           <div className="min-w-0">
                             <p className="text-[14px] font-extrabold text-foreground">{f.title}</p>
                             <p className="mt-0.5 text-[12px] leading-snug text-muted-foreground">
@@ -286,26 +377,12 @@ export function IntroView({ onDone }: { onDone: () => void }) {
                     })}
                   </div>
                 </motion.div>
-              </motion.section>
+              </SwipeSection>
             )}
 
+            {/* ---------- SLIDE 3 — preferensi ---------- */}
             {slide === 2 && (
-              <motion.section
-                key="s2"
-                custom={dir}
-                variants={slideVariants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
-                drag="x"
-                dragConstraints={{ left: 0, right: 0 }}
-                dragElastic={0.16}
-                onDragEnd={(_, info) => {
-                  if (info.offset.x > 56) back()
-                }}
-                className="absolute inset-0 flex cursor-grab flex-col overflow-hidden rounded-[32px] border border-border/60 bg-card p-6 active:cursor-grabbing sm:p-7"
-              >
+              <SwipeSection k="s2" dir={dir} onSwipeRight={back}>
                 <motion.div variants={stagger} initial="enter" animate="center" exit="exit" className="flex flex-1 flex-col">
                   <motion.span
                     variants={rise}
@@ -315,40 +392,70 @@ export function IntroView({ onDone }: { onDone: () => void }) {
                   </motion.span>
                   <motion.h1
                     variants={rise}
-                    className="mt-4 text-[24px] font-extrabold leading-tight tracking-tight text-foreground"
+                    className="mt-3.5 text-[24px] font-extrabold leading-tight tracking-tight text-foreground"
                   >
                     Sesuaikan seleramu
                   </motion.h1>
-                  <motion.p variants={rise} className="mt-1.5 text-[13px] text-muted-foreground">
+                  <motion.p variants={rise} className="mt-1 text-[13px] text-muted-foreground">
                     Preferensi ini bisa diubah kapan saja di Pengaturan.
                   </motion.p>
 
-                  <motion.div variants={rise} className="flex flex-1 flex-col justify-center gap-4 py-4">
-                    {/* Tema */}
-                    <div className="rounded-2xl border border-border/50 p-4">
-                      <p className="flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-wider text-muted-foreground">
-                        <SunMoon size={13} />
+                  {/* konten disebar rata — tidak menyisakan ruang kosong tunggal */}
+                  <div className="flex flex-1 flex-col justify-evenly pt-2">
+                    {/* Tema: pratinjau visual */}
+                    <motion.div variants={rise}>
+                      <p className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                        <SunMoon size={12} />
                         Tema tampilan
                       </p>
-                      <div className="mt-2.5 grid grid-cols-3 gap-2">
-                        {THEME_OPTIONS.map((t) => (
-                          <button
-                            key={t.value}
-                            type="button"
-                            onClick={() => setTheme(t.value)}
-                            className="press min-h-11 rounded-2xl border border-input bg-card text-[13px] font-bold text-muted-foreground transition-colors hover:text-foreground"
-                          >
-                            {t.label}
-                          </button>
-                        ))}
+                      <div className="grid grid-cols-3 gap-2.5">
+                        {THEME_OPTIONS.map((t) => {
+                          const active = theme === t.value
+                          return (
+                            <motion.button
+                              key={t.value}
+                              type="button"
+                              onClick={() => pickTheme(t.value)}
+                              whileTap={{ scale: 0.94 }}
+                              animate={{ scale: active ? 1.02 : 1 }}
+                              transition={{ type: 'spring', stiffness: 400, damping: 24 }}
+                              aria-pressed={active}
+                              className={cn(
+                                'relative flex flex-col items-center gap-1.5 rounded-2xl border p-2 pt-2 transition-colors',
+                                active
+                                  ? 'border-lime bg-lime/10'
+                                  : 'border-border/50 bg-background/40'
+                              )}
+                            >
+                              <span className="relative w-full">
+                                <ThemePreview value={t.value} />
+                              </span>
+                              <span className="text-[11.5px] font-extrabold text-foreground">
+                                {t.label}
+                              </span>
+                              {active && (
+                                <motion.span
+                                  layoutId="intro-theme-check"
+                                  transition={{ type: 'spring', stiffness: 500, damping: 32 }}
+                                  className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-lime text-on-lime shadow-sm"
+                                >
+                                  <Check size={12} strokeWidth={3} />
+                                </motion.span>
+                              )}
+                            </motion.button>
+                          )
+                        })}
                       </div>
-                    </div>
+                    </motion.div>
 
                     {/* Pengingat */}
-                    <div className="flex items-center justify-between gap-3 rounded-2xl border border-border/50 px-4 py-3.5">
-                      <div className="flex min-w-0 items-start gap-3">
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-muted">
-                          <Bell size={16} className="text-foreground" />
+                    <motion.div
+                      variants={rise}
+                      className="flex items-center justify-between gap-3 rounded-2xl border border-border/50 px-4 py-3.5"
+                    >
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted">
+                          <Bell size={17} className="text-foreground" />
                         </span>
                         <div className="min-w-0">
                           <p className="text-[13px] font-extrabold text-foreground">
@@ -379,10 +486,24 @@ export function IntroView({ onDone }: { onDone: () => void }) {
                           )}
                         />
                       </button>
-                    </div>
-                  </motion.div>
+                    </motion.div>
+
+                    {/* Tips — mengisi ruang bawah dengan info bermanfaat */}
+                    <motion.div
+                      variants={rise}
+                      className="flex items-center gap-3 rounded-2xl bg-muted px-4 py-3"
+                    >
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-lime">
+                        <Lightbulb size={16} className="text-on-lime" />
+                      </span>
+                      <p className="text-[12px] font-semibold leading-snug text-muted-foreground">
+                        <span className="font-extrabold text-foreground">Tips:</span> mode Gelap
+                        bikin nyaman dipakai malam hari — ubah kapan saja di Pengaturan.
+                      </p>
+                    </motion.div>
+                  </div>
                 </motion.div>
-              </motion.section>
+              </SwipeSection>
             )}
           </AnimatePresence>
         </div>
