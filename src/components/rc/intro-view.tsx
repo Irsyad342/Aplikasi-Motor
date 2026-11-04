@@ -20,6 +20,7 @@
  */
 
 import { useCallback, useRef, useState, type ReactNode } from 'react'
+import { useTheme } from 'next-themes'
 import {
   ArrowLeft,
   ArrowRight,
@@ -30,13 +31,16 @@ import {
   Disc3,
   Droplets,
   Gauge,
+  Moon,
   Receipt,
   ShieldCheck,
+  Sun,
   Wallet,
   Wrench,
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useMounted } from '@/lib/use-mounted'
 
 const SLIDES = [
   {
@@ -348,6 +352,11 @@ export function IntroView({ onDone }: { onDone: () => void }) {
   const doneRef = useRef(false)
   const last = slide === SLIDES.length - 1
 
+  /* tema mengikuti sistem next-themes aplikasi — ikon mencerminkan tema aktif */
+  const { resolvedTheme, setTheme } = useTheme()
+  const mounted = useMounted()
+  const dark = mounted && resolvedTheme === 'dark'
+
   const go = useCallback((next: number) => {
     setSlide(Math.max(0, Math.min(SLIDES.length - 1, next)))
   }, [])
@@ -382,14 +391,25 @@ export function IntroView({ onDone }: { onDone: () => void }) {
             </span>
             <span className="text-[15px] font-extrabold tracking-tight text-foreground">MotoMate</span>
           </span>
-          <button
-            type="button"
-            onClick={finish}
-            className="press mm-rise rounded-full bg-muted px-4 py-2 text-[12.5px] font-bold text-muted-foreground transition-colors hover:text-foreground"
-            style={{ animationDelay: '0.06s' }}
-          >
-            Lewati
-          </button>
+          <span className="mm-rise flex items-center gap-2">
+            {/* saklar tema kecil: matahari = terang, bulan = gelap */}
+            <button
+              type="button"
+              onClick={() => setTheme(dark ? 'light' : 'dark')}
+              aria-label={dark ? 'Beralih ke mode terang' : 'Beralih ke mode gelap'}
+              aria-pressed={dark}
+              className="press flex h-9 w-9 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {dark ? <Moon size={15} strokeWidth={2.2} /> : <Sun size={15} strokeWidth={2.2} />}
+            </button>
+            <button
+              type="button"
+              onClick={finish}
+              className="press rounded-full bg-muted px-4 py-2 text-[12.5px] font-bold text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Lewati
+            </button>
+          </span>
         </header>
 
         {/* ===== TENGAH: track ilustrasi, digeser dengan transform CSS ===== */}
