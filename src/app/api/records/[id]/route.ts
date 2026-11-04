@@ -38,7 +38,7 @@ async function loadOwnedRecord(id: string) {
   const userId = await sessionUserId()
   if (!userId) return { error: 'Belum login', status: 401 as const }
   const record = await db.serviceRecord.findFirst({
-    where: { id, vehicle: { userId } },
+    where: { id, component: { vehicle: { userId } } },
   })
   if (!record) return { error: 'Catatan tidak ditemukan', status: 404 as const }
   return { record }

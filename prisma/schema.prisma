@@ -44,8 +44,29 @@ model Vehicle {
   components Component[]
   trips      Trip[]
   expenses   Expense[]
+  cvtLogs    CvtLog[]
 
   @@index([userId])
+}
+
+/// Catatan perawatan khusus halaman "Perawatan CVT & Throttle Body".
+/// Terpisah dari ServiceRecord komponen — pencatatan dilakukan langsung
+/// di halaman tersebut (bersih rumah CVT, ganti roller, v-belt, oli gardan,
+/// bersih throttle body, ganti filter udara).
+model CvtLog {
+  id        String   @id @default(cuid())
+  vehicleId String
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  kind      String // 'cvt' | 'tb'
+  item      String // key item, mis. 'bersih-rumah-cvt', 'ganti-roller', 'bersih-throttle-body'
+  odometer  Int // km saat dikerjakan
+  date      DateTime @default(now())
+  cost      Int? // biaya dalam Rupiah (opsional)
+  workshop  String? // nama bengkel (opsional)
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([vehicleId])
 }
 
 model Component {

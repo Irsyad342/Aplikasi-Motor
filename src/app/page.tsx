@@ -10,13 +10,14 @@ import {
   ChevronDown,
   CircleDollarSign,
   Fuel,
+  MapPinOff,
   Plus,
   Search,
   Unlink,
   Wrench,
   X,
 } from 'lucide-react'
-import type { AppState, ComponentDTO, ExpenseDTO, TripDTO, VehicleDTO } from '@/lib/state'
+import type { AppState, ComponentDTO, ExpenseDTO, TripDTO, VehicleDTO, CvtLogDTO } from '@/lib/state'
 import { BENGKEL_LIST } from '@/lib/bengkel'
 import { bearingDeg, haversineKm, type LatLng } from '@/lib/geo'
 import { useLocation } from '@/lib/use-location'
@@ -87,6 +88,8 @@ function readStateCache(): AppState | null {
     if (!raw) return null
     const data = JSON.parse(raw) as AppState
     if (data && data.vehicle && Array.isArray(data.components) && Array.isArray(data.vehicles)) {
+      // Cache versi lama belum punya cvtLogs — normalisasi agar tidak crash
+      if (!Array.isArray(data.cvtLogs)) data.cvtLogs = []
       return data
     }
   } catch {
@@ -136,6 +139,11 @@ export default function Home() {
   const [installOpen, setInstallOpen] = useState<{ open: boolean; componentId: string | null }>({ open: false, componentId: null })
   const [tripOpen, setTripOpen] = useState(false)
   const [expenseOpen, setExpenseOpen] = useState(false)
+  // Popup panduan GPS — muncul saat GPS belum aktif / izin lokasi ditolak
+  const [gpsHelp, setGpsHelp] = useState<{
+    open: boolean
+    reason: 'denied' | 'unavailable' | 'unsupported'
+  }>({ open: false, reason: 'unavailable' })
   // Popup peringatan
   const [confirmLepas, setConfirmLepas] = useState(false)
   const [confirmReset, setConfirmReset] = useState(false)
@@ -301,11 +309,25 @@ export default function Home() {
     setLocMode('waiting')
   }, [])
 
-  const startTracking = useCallback(() => {
+  const startTracking = useCallback((force = false) => {
     // GPS wajib aktif — tanpa GPS fitur rekam tidak bisa dipakai
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
-      toast.error('Perangkat tidak mendukung GPS — nyalakan layanan lokasi dulu')
+      setGpsHelp({ open: true, reason: 'unsupported' })
       return
+    }
+    // Tanpa force: GPS mati / izin ditolak → tampilkan popup panduan (bukan teks polos),
+    // dipandu mengaktifkan GPS & izin lokasi lewat pengaturan situs web.
+    if (!force) {
+      if (locStatusRaw === 'denied') {
+        locRefresh()
+        setGpsHelp({ open: true, reason: 'denied' })
+        return
+      }
+      if (locStatusRaw === 'unavailable') {
+        locRefresh()
+        setGpsHelp({ open: true, reason: 'unavailable' })
+        return
+      }
     }
     // Izin bisa berubah di tengah jalan (sebelumnya ditolak, lalu diaktifkan).
     // Selalu coba ulang deteksi — JANGAN macet karena status lama.
@@ -522,6 +544,43 @@ export default function Home() {
       toast.success('Pengeluaran diperbarui')
     },
     [loadState, vehicleId]
+  )
+
+  const addCvtLog = useCallback(
+    async (data: {
+      kind: 'cvt' | 'tb'
+      item: string
+      odometer: number
+      date: string
+      cost: number | null
+      workshop: string | null
+      note: string | null
+    }) => {
+      if (!vehicle) return
+      await api('/api/cvt-logs', 'POST', { vehicleId: vehicle.id, ...data })
+      await loadState(vehicle.id)
+      toast.success('Perawatan tercatat')
+    },
+    [vehicle, loadState]
+  )
+
+  const deleteCvtLog = useCallback(
+    (id: string) => {
+      const prev = state
+      // Hapus optimis — daftar langsung diperbarui
+      setState((s) => (s ? { ...s, cvtLogs: s.cvtLogs.filter((l) => l.id !== id) } : s))
+      void (async () => {
+        try {
+          await api(`/api/cvt-logs/${id}`, 'DELETE')
+          await loadState(vehicleId ?? undefined)
+          toast.success('Catatan perawatan dihapus')
+        } catch (e) {
+          setState(prev) // gagal → kembalikan seperti semula
+          toast.error(e instanceof Error ? e.message : 'Gagal menghapus catatan')
+        }
+      })()
+    },
+    [state, vehicleId, loadState]
   )
 
   const deleteRecord = useCallback(
@@ -909,7 +968,7 @@ export default function Home() {
                   tracking={tracking}
                   autoTrack={autoTrack}
                   onToggleAutoTrack={toggleAutoTrack}
-                  onStartTracking={startTracking}
+                  onStartTracking={() => startTracking()}
                   onFinishTracking={finishTracking}
                   onDeleteTrip={deleteTrip}
                   path={livePath}
@@ -917,9 +976,13 @@ export default function Home() {
                   heading={heading}
                   locMode={locMode}
                   locStatus={loc.status}
-                  locError={loc.error}
                   locWaitSec={gpsWaitSec}
-                  onRetryLocation={loc.refresh}
+                  onOpenGpsHelp={() =>
+                    setGpsHelp({
+                      open: true,
+                      reason: loc.status === 'denied' ? 'denied' : 'unavailable',
+                    })
+                  }
                   onAddManual={() => setTripOpen(true)}
                   onAddExpense={() => setExpenseOpen(true)}
                   onOpenHistory={() => setView('history')}
@@ -987,9 +1050,13 @@ export default function Home() {
               {view === 'cvt' && (
                 <CvtGuideView
                   components={state.components}
+                  logs={state.cvtLogs}
+                  odometer={vehicle.odometer}
                   onBack={() => setView('maint')}
                   onOpenBengkel={() => setView('bengkel')}
                   onOpenDetail={setOpenDetailId}
+                  onAddLog={addCvtLog}
+                  onDeleteLog={deleteCvtLog}
                 />
               )}
           </div>
@@ -1183,6 +1250,18 @@ export default function Home() {
           danger
         />
 
+        {/* Popup panduan GPS — pengganti pesan teks polos saat GPS belum aktif */}
+        <GpsHelpSheet
+          open={gpsHelp.open}
+          reason={gpsHelp.reason}
+          onClose={() => setGpsHelp((g) => ({ ...g, open: false }))}
+          onRetry={() => {
+            setGpsHelp((g) => ({ ...g, open: false }))
+            locRefresh()
+            startTracking(true)
+          }}
+        />
+
         {/* Settings */}
         <AnimatePresence>
           {settingsOpen && (
@@ -1221,6 +1300,83 @@ export default function Home() {
 }
 
 // ================= Sheets =================
+
+/** Popup panduan GPS — tampil saat GPS belum aktif / izin lokasi ditolak.
+    Menggantikan pesan teks polos: memandu langkah mengaktifkan GPS perangkat
+    dan izin lokasi lewat pengaturan situs web (ikon gembok di address bar). */
+function GpsHelpSheet({
+  open,
+  reason,
+  onClose,
+  onRetry,
+}: {
+  open: boolean
+  reason: 'denied' | 'unavailable' | 'unsupported'
+  onClose: () => void
+  onRetry: () => void
+}) {
+  const unsupported = reason === 'unsupported'
+  const denied = reason === 'denied'
+  const title = unsupported
+    ? 'Perangkat Tidak Mendukung GPS'
+    : denied
+      ? 'Izin Lokasi Belum Diberikan'
+      : 'GPS Belum Aktif'
+  const desc = unsupported
+    ? 'Browser ini tidak menyediakan GPS. Buka MotoMate lewat Chrome/Safari di ponsel dengan layanan lokasi aktif ya.'
+    : denied
+      ? 'MotoMate belum boleh mengakses lokasimu. Izinkan lewat pengaturan situs web di browser:'
+      : 'Nyalakan terlebih dahulu GPS (Layanan Lokasi) di perangkatmu agar perjalanan bisa direkam:'
+  const steps = unsupported
+    ? []
+    : denied
+      ? [
+          'Ketuk ikon gembok / info (ⓘ) di samping alamat situs pada address bar browser',
+          'Buka "Izin" atau "Site settings" → pilih "Lokasi" → ubah menjadi "Izinkan / Allow"',
+          'Bila muncul popup permintaan izin dari MotoMate, pilih "Izinkan"',
+          'Kembali ke aplikasi lalu tekan "Coba Lagi & Mulai Rekam" di bawah',
+        ]
+      : [
+          'Tarik panel kontrol cepat (quick settings) ponsel, lalu aktifkan "Lokasi / GPS"',
+          'Keluar ke area terbuka — sinyal GPS sulit didapat di dalam ruangan atau di bawah atap',
+          'Jika tetap gagal, buka pengaturan situs web: ketuk ikon gembok (🔒) di address bar → "Izin" → "Lokasi" → "Izinkan"',
+        ]
+
+  return (
+    <Sheet open={open} onClose={onClose} title={title} zIndex={60}>
+      <div className="flex flex-col gap-4">
+        <div className="flex items-start gap-3 rounded-2xl bg-warn/10 p-4 ring-1 ring-warn/30">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-warn/20 text-warn">
+            <MapPinOff size={19} />
+          </span>
+          <p className="text-[13px] font-semibold leading-relaxed text-foreground">{desc}</p>
+        </div>
+
+        {steps.length > 0 && (
+          <ol className="space-y-3">
+            {steps.map((s, i) => (
+              <li key={i} className="flex items-start gap-3">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-lime text-[11px] font-extrabold text-on-lime">
+                  {i + 1}
+                </span>
+                <span className="text-[13px] leading-snug text-foreground">{s}</span>
+              </li>
+            ))}
+          </ol>
+        )}
+
+        {!unsupported && (
+          <Btn variant="lime" full onClick={onRetry}>
+            Coba Lagi &amp; Mulai Rekam
+          </Btn>
+        )}
+        <Btn variant="outline" full onClick={onClose}>
+          Tutup
+        </Btn>
+      </div>
+    </Sheet>
+  )
+}
 
 function VehicleSwitcherSheet({
   open,
@@ -1667,7 +1823,7 @@ function ManualTripSheet({
 }: {
   open: boolean
   onClose: () => void
-  onSubmit: (data: { distance: number; date: string; note?: string }) => Promise<void>
+  onSubmit: (data: { distance: number; date: string; note?: string }) => Promise<void> | void
 }) {
   const [distance, setDistance] = useState('')
   const [date, setDate] = useState(todayInput())

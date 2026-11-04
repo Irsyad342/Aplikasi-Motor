@@ -13,9 +13,9 @@ import {
   Bike,
   CalendarDays,
   CircleDollarSign,
+  MapPinOff,
   Navigation,
   Play,
-  RefreshCw,
   Route,
   Square,
   Trash2,
@@ -52,10 +52,10 @@ export interface RideViewProps {
   heading: number
   locMode: 'waiting' | 'gps'
   locStatus: string
-  locError: string | null
-  /** Detik sejak mulai rekam tanpa fix GPS — untuk umpan balik "Coba Lagi" */
+  /** Detik sejak mulai rekam tanpa fix GPS — untuk umpan balik tombol panduan */
   locWaitSec: number
-  onRetryLocation: () => void
+  /** Buka popup panduan cara mengaktifkan GPS / izin lokasi */
+  onOpenGpsHelp: () => void
   onAddManual: () => void
   onAddExpense: () => void
   onOpenHistory: () => void
@@ -91,9 +91,8 @@ export function RideView(props: RideViewProps) {
     heading,
     locMode,
     locStatus,
-    locError,
     locWaitSec,
-    onRetryLocation,
+    onOpenGpsHelp,
     onAddManual,
     onAddExpense,
     onOpenHistory,
@@ -262,20 +261,21 @@ export function RideView(props: RideViewProps) {
             </Btn>
 
             {locMode === 'waiting' && (
-              <div className="mt-3 flex flex-col items-center gap-1.5 text-center">
+              <div className="mt-3 flex flex-col items-center gap-2 text-center">
                 <p className="text-[12px] font-semibold text-hero-foreground/70">
                   Nyalakan GPS &amp; pastikan berada di luar ruangan agar jarak tercatat akurat
                 </p>
-                {locError && <p className="text-[11px] font-semibold text-warn">{locError}</p>}
-                {locWaitSec >= 12 && locStatus !== 'denied' && locStatus !== 'unavailable' && (
-                  <p className="text-[11px] font-semibold text-warn">
-                    GPS belum terdeteksi — pastikan kamu di luar ruangan, lalu coba lagi
-                  </p>
-                )}
                 {(locStatus === 'denied' || locStatus === 'unavailable' || locWaitSec >= 12) && (
-                  <Btn variant="outline" size="sm" className={outlineOnHero} onClick={onRetryLocation}>
-                    <RefreshCw size={14} /> Coba Lagi
-                  </Btn>
+                  <button
+                    type="button"
+                    onClick={onOpenGpsHelp}
+                    className="press mt-1 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-warn/15 text-[13px] font-extrabold text-warn ring-1 ring-warn/30 transition-colors hover:bg-warn/25"
+                  >
+                    <MapPinOff size={16} />
+                    {locStatus === 'denied'
+                      ? 'Izin lokasi belum diberikan — ketuk untuk panduan'
+                      : 'GPS belum terdeteksi — ketuk untuk panduan aktifkan'}
+                  </button>
                 )}
               </div>
             )}

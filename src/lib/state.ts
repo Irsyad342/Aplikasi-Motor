@@ -73,6 +73,19 @@ export interface ExpenseDTO {
   date: string
 }
 
+/** Catatan perawatan khusus dari halaman "Perawatan CVT & Throttle Body" */
+export interface CvtLogDTO {
+  id: string
+  vehicleId: string
+  kind: string // 'cvt' | 'tb'
+  item: string // key item, mis. 'bersih-rumah-cvt'
+  odometer: number
+  date: string
+  cost: number | null
+  workshop: string | null
+  note: string | null
+}
+
 export interface AppState {
   vehicles: VehicleDTO[]
   vehicle: VehicleDTO | null
@@ -80,6 +93,7 @@ export interface AppState {
   trips: TripDTO[]
   records: RecordDTO[]
   expenses: ExpenseDTO[]
+  cvtLogs: CvtLogDTO[]
   catalogKeys: string[]
 }
 
@@ -106,12 +120,12 @@ export async function buildState(
     null
 
   if (!vehicle) {
-    return { vehicles, vehicle: null, components: [], trips: [], records: [], expenses: [], catalogKeys: [] }
+    return { vehicles, vehicle: null, components: [], trips: [], records: [], expenses: [], cvtLogs: [], catalogKeys: [] }
   }
 
   const now = new Date()
 
-  const [componentRows, trips, records, expenses, catalogItems] = await Promise.all([
+  const [componentRows, trips, records, expenses, cvtLogs, catalogItems] = await Promise.all([
     db.component.findMany({
       where: { vehicleId: vehicle.id },
       orderBy: [{ installed: 'desc' }, { name: 'asc' }],
@@ -128,6 +142,11 @@ export async function buildState(
       include: { component: { select: { name: true, icon: true } } },
     }),
     db.expense.findMany({
+      where: { vehicleId: vehicle.id },
+      orderBy: { date: 'desc' },
+      take: 100,
+    }),
+    db.cvtLog.findMany({
       where: { vehicleId: vehicle.id },
       orderBy: { date: 'desc' },
       take: 100,
@@ -244,6 +263,17 @@ export async function buildState(
       liters: e.liters ?? null,
       note: e.note,
       date: e.date.toISOString(),
+    })),
+    cvtLogs: cvtLogs.map((l) => ({
+      id: l.id,
+      vehicleId: l.vehicleId,
+      kind: l.kind,
+      item: l.item,
+      odometer: l.odometer,
+      date: l.date.toISOString(),
+      cost: l.cost,
+      workshop: l.workshop,
+      note: l.note,
     })),
     catalogKeys: catalogItems.map((i) => i.key),
   }
