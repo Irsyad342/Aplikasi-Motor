@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { motion } from 'framer-motion'
 import {
   Building2, Navigation, Phone, Search, Star, Wrench, Map as MapIcon,
   List, LocateFixed, ChevronDown, X, MapPin, AlertTriangle, RefreshCw, WifiOff, ArrowLeft,
@@ -19,6 +20,20 @@ type Filter = 'semua' | 'resmi' | 'umum'
 type Mode = 'peta' | 'daftar'
 
 const RADII = [2, 5, 10, 25, 50]
+
+/** blok masuk dengan fade + naik halus */
+function FadeUp({ children, delay = 0, className }: { children: ReactNode; delay?: number; className?: string }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay, ease: [0.22, 1, 0.36, 1] }}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  )
+}
 
 export function BengkelView({ onBack }: { onBack?: () => void }) {
   const [mode, setMode] = useState<Mode>('daftar')
@@ -136,43 +151,66 @@ export function BengkelView({ onBack }: { onBack?: () => void }) {
 
   return (
     <div className="pb-6">
-      <header className="px-4 pb-3 pt-1">
-        {onBack && (
+      {/* Header ringkas: tombol kembali + judul + status GPS dalam satu baris */}
+      <FadeUp className="px-4 pb-3 pt-3">
+        <div className="flex items-center gap-3">
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              aria-label="Kembali"
+              className="press flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border/70 bg-card text-foreground shadow-sm"
+            >
+              <ArrowLeft size={17} />
+            </button>
+          )}
+          <div className="min-w-0 flex-1">
+            <h1 className="text-[19px] font-extrabold leading-tight tracking-tight text-foreground">
+              Bengkel Pulau Jawa
+            </h1>
+            <button
+              type="button"
+              onClick={loc.refresh}
+              aria-label="Perbarui lokasi GPS"
+              className="mt-0.5 flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground"
+            >
+              <LocateFixed
+                size={12}
+                className={cn(
+                  loc.status === 'locating' && 'animate-pulse text-foreground',
+                  loc.status === 'granted' && 'text-ok',
+                  (loc.status === 'denied' || loc.status === 'unavailable') && 'text-warn'
+                )}
+              />
+              <span className="truncate">
+                {loc.status === 'locating' && 'Mendeteksi lokasi GPS…'}
+                {loc.status === 'granted' &&
+                  (userPos && isInJava(userPos.lat, userPos.lng)
+                    ? `Dari lokasimu${loc.accuracy ? ` · ±${Math.round(loc.accuracy)} m` : ''}`
+                    : 'Lokasi terdeteksi')}
+                {(loc.status === 'denied' || loc.status === 'unavailable') &&
+                  'GPS nonaktif — ketuk untuk coba lagi'}
+              </span>
+            </button>
+          </div>
           <button
             type="button"
-            onClick={onBack}
-            aria-label="Kembali"
-            className="press mb-2 flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card text-foreground shadow-sm"
+            onClick={() => {
+              abortRef.current?.abort()
+              abortRef.current = null
+              setData(null)
+              setLoading(true)
+              // picu deteksi ulang GPS + fetch ulang data bengkel
+              loc.refresh()
+              setFetchNonce((n) => n + 1)
+            }}
+            aria-label="Muat ulang data bengkel"
+            className="press flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border/70 bg-card text-muted-foreground shadow-sm active:scale-90"
           >
-            <ArrowLeft size={18} />
+            <RefreshCw size={15} className={cn(loading && 'animate-spin text-foreground')} />
           </button>
-        )}
-        <h1 className="text-center text-xl font-extrabold text-foreground">Bengkel Pulau Jawa</h1>
-        <div className="mt-0.5 flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
-          <button
-            type="button"
-            onClick={loc.refresh}
-            aria-label="Perbarui lokasi GPS"
-            className="flex items-center gap-1"
-          >
-            <LocateFixed
-              size={12}
-              className={cn(
-                loc.status === 'locating' && 'animate-pulse text-foreground',
-                loc.status === 'granted' && 'text-ok',
-                (loc.status === 'denied' || loc.status === 'unavailable') && 'text-warn'
-              )}
-            />
-          </button>
-          {loc.status === 'locating' && 'Mendeteksi lokasi GPS…'}
-          {loc.status === 'granted' &&
-            (userPos && isInJava(userPos.lat, userPos.lng)
-              ? `Dari lokasimu${loc.accuracy ? ` · ±${Math.round(loc.accuracy)} m` : ''}`
-              : 'Lokasi terdeteksi')}
-          {(loc.status === 'denied' || loc.status === 'unavailable') &&
-            'GPS nonaktif — ketuk untuk coba lagi'}
         </div>
-      </header>
+      </FadeUp>
 
       {/* Peringatan di luar Pulau Jawa */}
       {outsideJava && !activeCity && (
@@ -187,41 +225,8 @@ export function BengkelView({ onBack }: { onBack?: () => void }) {
         </div>
       )}
 
-      {/* Status sumber data */}
-      <div className="flex items-center justify-between px-4">
-        <p className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
-          {live ? (
-            <>
-              <MapPin size={11} className="text-ok" />
-              Data live OpenStreetMap · Pulau Jawa
-            </>
-          ) : (
-            <>
-              <WifiOff size={11} className="text-warn" />
-              Mode demo (server peta tidak terjangkau)
-            </>
-          )}
-        </p>
-        <button
-          type="button"
-          onClick={() => {
-            abortRef.current?.abort()
-            abortRef.current = null
-            setData(null)
-            setLoading(true)
-            // picu deteksi ulang GPS + fetch ulang data bengkel
-            loc.refresh()
-            setFetchNonce((n) => n + 1)
-          }}
-          aria-label="Muat ulang data bengkel"
-          className="text-muted-foreground/70 active:scale-90"
-        >
-          <RefreshCw size={14} className={cn(loading && 'animate-spin text-foreground')} />
-        </button>
-      </div>
-
       {/* Pencarian */}
-      <div className="px-4 pt-2">
+      <FadeUp delay={0.05} className="px-4 pt-1">
         <div className="relative">
           <Search
             size={17}
@@ -245,10 +250,10 @@ export function BengkelView({ onBack }: { onBack?: () => void }) {
             </button>
           )}
         </div>
-      </div>
+      </FadeUp>
 
       {/* Pilihan kota (Pulau Jawa) */}
-      <div className="relative px-4 pt-3">
+      <FadeUp delay={0.08} className="relative px-4 pt-2.5">
         <button
           type="button"
           onClick={() => setCityListOpen((o) => !o)}
@@ -306,10 +311,10 @@ export function BengkelView({ onBack }: { onBack?: () => void }) {
             ))}
           </div>
         )}
-      </div>
+      </FadeUp>
 
       {/* Mode + filter */}
-      <div className="flex items-center gap-2 px-4 pt-3">
+      <FadeUp delay={0.11} className="flex items-center gap-2 px-4 pt-2.5">
         <div className="flex flex-1 items-center gap-1.5 rounded-full bg-muted p-1">
           {(
             [
@@ -348,11 +353,11 @@ export function BengkelView({ onBack }: { onBack?: () => void }) {
             {f.label}
           </button>
         ))}
-      </div>
+      </FadeUp>
 
       {/* Chip radius */}
       {!query && (
-        <div className="flex items-center gap-1.5 px-4 pt-3">
+        <FadeUp delay={0.14} className="flex items-center gap-1.5 px-4 pt-2.5">
           <span className="text-[11px] font-semibold text-muted-foreground">Radius:</span>
           {RADII.map((r) => (
             <button
@@ -367,17 +372,33 @@ export function BengkelView({ onBack }: { onBack?: () => void }) {
               {r} km
             </button>
           ))}
-        </div>
+        </FadeUp>
       )}
 
-      {/* Info jumlah hasil */}
-      <p className="px-4 pt-3 text-[11px] font-medium text-muted-foreground">
-        {loading
-          ? 'Memuat bengkel dari peta…'
-          : query
-            ? `${shown.length} hasil untuk “${query}” · dari ${refLabel}`
-            : `${shown.length} bengkel dalam radius ${radiusKm} km dari ${refLabel}`}
-      </p>
+      {/* Info jumlah hasil + status sumber data */}
+      <FadeUp delay={0.17} className="px-4 pt-2.5">
+        <p className="flex flex-wrap items-center gap-x-1.5 text-[11px] font-medium text-muted-foreground">
+          {live ? (
+            <span className="inline-flex items-center gap-1 text-ok">
+              <MapPin size={11} />
+              Live OSM
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-warn">
+              <WifiOff size={11} />
+              Mode demo
+            </span>
+          )}
+          <span aria-hidden="true">·</span>
+          <span>
+            {loading
+              ? 'memuat bengkel dari peta…'
+              : query
+                ? `${shown.length} hasil untuk “${query}” · dari ${refLabel}`
+                : `${shown.length} bengkel dalam radius ${radiusKm} km dari ${refLabel}`}
+          </span>
+        </p>
+      </FadeUp>
 
       {/* Konten */}
       {mode === 'peta' ? (
@@ -434,8 +455,8 @@ export function BengkelView({ onBack }: { onBack?: () => void }) {
               </p>
             </div>
           ) : (
-            shown.slice(0, 40).map(({ b, d }) => (
-              <BengkelCard key={b.id} b={b} refPoint={refPoint} distanceKm={d} />
+            shown.slice(0, 40).map(({ b, d }, i) => (
+              <BengkelCard key={b.id} b={b} refPoint={refPoint} distanceKm={d} index={i} />
             ))
           )}
         </div>
@@ -450,17 +471,26 @@ function BengkelCard({
   distanceKm,
   compact,
   onClose,
+  index = 0,
 }: {
   b: Bengkel
   refPoint: LatLng
   distanceKm?: number
   compact?: boolean
   onClose?: () => void
+  index?: number
 }) {
   const open = isOpenNow(b.hours)
   const dist = distanceKm ?? distanceFrom(b, refPoint)
   return (
-    <article
+    <motion.article
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{
+        duration: 0.32,
+        delay: compact ? 0 : Math.min(index * 0.04, 0.28),
+        ease: [0.22, 1, 0.36, 1],
+      }}
       className={cn(
         'rounded-3xl bg-card shadow-sm',
         compact ? 'p-4' : 'p-4'
@@ -569,6 +599,6 @@ function BengkelCard({
           </a>
         </div>
       </div>
-    </article>
+    </motion.article>
   )
 }

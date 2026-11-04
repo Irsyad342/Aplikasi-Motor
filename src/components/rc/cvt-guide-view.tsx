@@ -570,7 +570,7 @@ export function CvtGuideView({
   return (
     <div className="pb-6">
       {/* Header */}
-      <header className="px-4 pb-3 pt-1">
+      <header className="px-4 pb-3 pt-3">
         <button
           type="button"
           onClick={onBack}

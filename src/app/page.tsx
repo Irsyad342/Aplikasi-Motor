@@ -22,6 +22,7 @@ import { BENGKEL_LIST } from '@/lib/bengkel'
 import { bearingDeg, haversineKm, type LatLng } from '@/lib/geo'
 import { useLocation } from '@/lib/use-location'
 import { formatKm, statusLabel } from '@/lib/status'
+import { cn } from '@/lib/utils'
 import { BottomNav, type View } from '@/components/rc/nav'
 import {
   Btn,
@@ -899,10 +900,15 @@ export default function Home() {
     month: 'long',
   }).format(new Date())
 
+  // Sub-halaman dengan header sendiri (tombol kembali + judul) —
+  // header beranda (sapaan/tanggal) disembunyikan agar tidak menyisakan ruang kosong.
+  const subPage = view === 'bengkel' || view === 'cvt' || view === 'history'
+
   return (
     <div className="flex min-h-dvh justify-center bg-background">
       <div className="relative flex w-full max-w-[520px] flex-col">
         {/* ---------- Header ---------- */}
+        {!subPage && (
         <header className="sticky top-0 z-30 bg-background/90 px-5 pb-3 pt-5 backdrop-blur-md">
           <div className="flex items-center justify-between gap-3">
             <button
@@ -943,11 +949,17 @@ export default function Home() {
             </Pill>
           </div>
         </header>
+        )}
 
         {/* ---------- Konten ---------- */}
-        <main className="flex-1 px-5 pb-36">
-          {/* Tanpa transisi antar halaman — pindah tab langsung tampil agar terasa instan */}
-          <div key={view}>
+        <main className={cn('flex-1 pb-36', view === 'bengkel' ? 'px-0' : 'px-5')}>
+          {/* Transisi halaman cepat — masuk dengan fade + geser tipis (tetap terasa instan) */}
+          <motion.div
+            key={view}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.18, ease: 'easeOut' }}
+          >
               {view === 'home' && (
                 <HomeView
                   vehicle={vehicle}
@@ -1059,7 +1071,7 @@ export default function Home() {
                   onDeleteLog={deleteCvtLog}
                 />
               )}
-          </div>
+          </motion.div>
         </main>
 
         {/* Aksi seleksi komponen */}
