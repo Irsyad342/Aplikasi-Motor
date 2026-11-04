@@ -386,7 +386,7 @@ export function SettingsSheet({
         </button>
 
         <p className="mt-6 text-center text-xs text-zinc-400">
-          RideCheck Clone · Dibuat dengan Z.ai
+          MotoMate · Dibuat dengan Z.ai
         </p>
       </div>
     </BottomSheet>

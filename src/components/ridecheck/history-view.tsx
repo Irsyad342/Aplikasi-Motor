@@ -88,7 +88,7 @@ export function HistoryView({
             const url = URL.createObjectURL(blob)
             const a = document.createElement('a')
             a.href = url
-            a.download = `ridecheck-riwayat-${vehicle.name.replace(/\s+/g, '-').toLowerCase()}.csv`
+            a.download = `motomate-riwayat-${vehicle.name.replace(/\s+/g, '-').toLowerCase()}.csv`
             a.click()
             URL.revokeObjectURL(url)
             toast.success('Riwayat servis diekspor (Premium)')

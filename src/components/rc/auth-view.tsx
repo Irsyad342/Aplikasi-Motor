@@ -12,6 +12,7 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
+  BellRing,
   Bike,
   ChevronLeft,
   ChevronRight,
@@ -19,8 +20,6 @@ import {
   Eye,
   EyeOff,
   Loader2,
-  Route,
-  Wrench,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { IntroView } from '@/components/rc/intro-view'
@@ -38,22 +37,22 @@ const INTRO_KEY = 'mm-intro'
 const inputCls =
   'min-h-12 w-full rounded-2xl border border-input bg-card px-4 text-[15px] font-semibold text-foreground placeholder:font-medium placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-50'
 
-/** konten strip perkenalan mini di halaman login */
+/** konten strip perkenalan mini di halaman login (selaras onboarding penuh) */
 const MINI_SLIDES = [
   {
-    icon: Wrench,
-    title: 'Pemantau komponen',
-    desc: 'Sisa pakai oli, rem, busi dihitung otomatis dari odometer.',
+    icon: Bike,
+    title: 'Your Motorcycle, One Place',
+    desc: 'Kelola informasi kendaraan dan pantau kondisi motor dalam satu aplikasi.',
   },
   {
-    icon: Route,
-    title: 'Rekam perjalanan GPS',
-    desc: 'Rute, jarak & durasi terekam otomatis saat berkendara.',
+    icon: BellRing,
+    title: 'Never Miss Your Maintenance',
+    desc: 'Jadwal servis, oli, dan komponen terpantau lewat pengingat praktis.',
   },
   {
     icon: CircleDollarSign,
-    title: 'Biaya & analitik',
-    desc: 'Grafik pengeluaran bulanan: bensin, parkir, dan servis.',
+    title: 'Everything Under Control',
+    desc: 'Riwayat perawatan dan pengeluaran motor tercatat rapi dan teratur.',
   },
 ] as const
 

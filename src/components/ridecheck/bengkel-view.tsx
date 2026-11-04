@@ -7,6 +7,7 @@ import {
   List, LocateFixed, ChevronDown, X, MapPin, AlertTriangle, RefreshCw, WifiOff, ArrowLeft,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { IconBtn } from '@/components/rc/ui'
 import { DEFAULT_LOCATION, formatDistance, type LatLng } from '@/lib/geo'
 import { useLocation } from '@/lib/use-location'
 import { fetchLiveBengkel } from '@/lib/overpass'
@@ -151,28 +152,23 @@ export function BengkelView({ onBack }: { onBack?: () => void }) {
 
   return (
     <div className="pb-6">
-      {/* Header ringkas: tombol kembali + judul + status GPS dalam satu baris */}
+      {/* Header: satu baris presisi (back + judul/status + refresh), tinggi kontrol seragam */}
       <FadeUp className="px-4 pb-2.5 pt-3">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           {onBack && (
-            <button
-              type="button"
-              onClick={onBack}
-              aria-label="Kembali"
-              className="press flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border/70 bg-card text-foreground shadow-sm"
-            >
+            <IconBtn label="Kembali" onClick={onBack} className="h-10 w-10">
               <ArrowLeft size={17} />
-            </button>
+            </IconBtn>
           )}
           <div className="min-w-0 flex-1">
-            <h1 className="text-[19px] font-extrabold leading-tight tracking-tight text-foreground">
-              Bengkel Pulau Jawa
+            <h1 className="text-[17px] font-extrabold leading-tight tracking-tight text-foreground">
+              Bengkel
             </h1>
             <button
               type="button"
               onClick={loc.refresh}
               aria-label="Perbarui lokasi GPS"
-              className="mt-0.5 flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground"
+              className="mt-0.5 flex items-center gap-1.5 text-[11px] font-semibold leading-tight text-muted-foreground"
             >
               <LocateFixed
                 size={12}
@@ -193,8 +189,8 @@ export function BengkelView({ onBack }: { onBack?: () => void }) {
               </span>
             </button>
           </div>
-          <button
-            type="button"
+          <IconBtn
+            label="Muat ulang data bengkel"
             onClick={() => {
               abortRef.current?.abort()
               abortRef.current = null
@@ -204,17 +200,16 @@ export function BengkelView({ onBack }: { onBack?: () => void }) {
               loc.refresh()
               setFetchNonce((n) => n + 1)
             }}
-            aria-label="Muat ulang data bengkel"
-            className="press flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border/70 bg-card text-muted-foreground shadow-sm active:scale-90"
+            className="h-10 w-10 text-muted-foreground"
           >
             <RefreshCw size={15} className={cn(loading && 'animate-spin text-foreground')} />
-          </button>
+          </IconBtn>
         </div>
       </FadeUp>
 
       {/* Peringatan di luar Pulau Jawa */}
       {outsideJava && !activeCity && (
-        <div className="mx-4 mb-2.5 flex items-start gap-2.5 rounded-2xl bg-warn/10 p-3 ring-1 ring-warn/30">
+        <div className="mx-4 mb-2 flex items-start gap-2.5 rounded-2xl bg-warn/10 p-3 ring-1 ring-warn/30">
           <AlertTriangle size={16} className="mt-0.5 shrink-0 text-warn" />
           <div className="text-xs leading-relaxed text-warn">
             <p className="font-bold">Lokasimu di luar Pulau Jawa</p>
@@ -225,8 +220,8 @@ export function BengkelView({ onBack }: { onBack?: () => void }) {
         </div>
       )}
 
-      {/* Pencarian + pilih kota — digabung satu baris agar ringkas */}
-      <FadeUp delay={0.04} className="relative px-4 pt-0.5">
+      {/* Pencarian + pilih kota — satu baris, tinggi seragam h-10 */}
+      <FadeUp delay={0.04} className="relative px-4">
         <div className="flex items-center gap-2">
           <div className="relative min-w-0 flex-1">
             <Search
@@ -314,9 +309,9 @@ export function BengkelView({ onBack }: { onBack?: () => void }) {
         )}
       </FadeUp>
 
-      {/* Mode + filter — satu baris ringkas */}
-      <FadeUp delay={0.08} className="flex items-center gap-2 px-4 pt-2">
-        <div className="flex flex-1 items-center gap-1 rounded-full bg-muted p-1">
+      {/* Mode + filter — satu baris, tinggi seragam h-9 */}
+      <FadeUp delay={0.08} className="flex items-center gap-1.5 px-4 pt-2">
+        <div className="flex h-9 flex-1 items-center gap-1 rounded-full bg-muted p-1">
           {(
             [
               { v: 'daftar' as Mode, label: 'Daftar', icon: List },
@@ -328,7 +323,7 @@ export function BengkelView({ onBack }: { onBack?: () => void }) {
               type="button"
               onClick={() => setMode(m.v)}
               className={cn(
-                'flex flex-1 items-center justify-center gap-1 rounded-full py-1 text-xs transition-all',
+                'flex flex-1 items-center justify-center gap-1 rounded-full text-xs transition-all',
                 mode === m.v
                   ? 'bg-card font-bold text-foreground shadow-sm'
                   : 'font-medium text-muted-foreground'
@@ -345,7 +340,7 @@ export function BengkelView({ onBack }: { onBack?: () => void }) {
             type="button"
             onClick={() => setFilter(f.value)}
             className={cn(
-              'rounded-full px-3 py-1.5 text-xs font-bold transition-colors',
+              'flex h-9 items-center rounded-full px-3.5 text-xs font-bold transition-colors',
               filter === f.value
                 ? 'bg-ink text-background'
                 : 'bg-card text-muted-foreground shadow-sm'
@@ -366,7 +361,7 @@ export function BengkelView({ onBack }: { onBack?: () => void }) {
                 type="button"
                 onClick={() => setRadiusKm(r)}
                 className={cn(
-                  'min-h-8 rounded-full py-1 text-center text-[11px] font-bold transition-all',
+                  'flex h-8 items-center justify-center rounded-full text-[11px] font-bold transition-all',
                   radiusKm === r
                     ? 'bg-lime text-on-lime'
                     : 'bg-card text-muted-foreground shadow-sm'
