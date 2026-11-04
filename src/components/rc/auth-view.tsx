@@ -4,7 +4,7 @@
  * AuthView — layar masuk & daftar akun MotoMate.
  * • Badge sparkle dihapus — diganti bar brand ringkas (logo + MotoMate).
  * • Perkenalan tetap "terlampir" di halaman login: strip carousel mini
- *   yang bisa digeser (swipe) di bawah form, plus tombol untuk memutar
+ *   dengan tombol panah di bawah form, plus tombol untuk memutar
  *   perkenalan penuh lagi.
  * Pengguna baru disambut slide perkenalan + preferensi sebelum form login.
  */
@@ -69,7 +69,7 @@ function Stagger({ children, delay = 0 }: { children: ReactNode; delay?: number 
   )
 }
 
-/** strip carousel mini yang bisa digeser — perkenalan terlampir di login */
+/** strip carousel mini dengan tombol — perkenalan terlampir di login */
 function MiniIntroCarousel() {
   const [idx, setIdx] = useState(0)
   const go = (d: number) =>
@@ -81,18 +81,11 @@ function MiniIntroCarousel() {
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={idx}
-            drag="x"
-            dragConstraints={{ left: 0, right: 0 }}
-            dragElastic={0.14}
-            onDragEnd={(_, info) => {
-              if (info.offset.x < -40) go(1)
-              else if (info.offset.x > 40) go(-1)
-            }}
             initial={{ opacity: 0, x: 26 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -26 }}
             transition={{ duration: 0.26, ease: 'easeOut' }}
-            className="flex cursor-grab items-center gap-3 p-3.5 active:cursor-grabbing"
+            className="flex items-center gap-3 p-3.5"
           >
             {(() => {
               const s = MINI_SLIDES[idx]
@@ -353,11 +346,11 @@ export function AuthView({ onAuthed }: { onAuthed: (user: AuthUser) => void }) {
             </button>
           </Stagger>
 
-          {/* Perkenalan terlampir — strip mini yang bisa digeser */}
+          {/* Perkenalan terlampir — strip mini dengan navigasi tombol */}
           <Stagger delay={0.33}>
             <div className="mt-5 border-t border-border/60 pt-4">
               <p className="mb-2.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                Kenali MotoMate, geser untuk lihat
+                Kenali MotoMate, ketuk panah untuk lihat
               </p>
               <MiniIntroCarousel />
             </div>

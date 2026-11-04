@@ -214,6 +214,33 @@
   color: #a5a7a4;
 }
 
+/* ---------- Animasi onboarding MotoMate ----------
+   Hanya transform dan opacity sehingga berjalan di compositor GPU
+   (tanpa JavaScript), dan otomatis nonaktif saat pengguna mengaktifkan
+   prefers-reduced-motion. */
+@keyframes mm-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
+}
+@keyframes mm-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes mm-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes mm-nudge {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(3px); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .mm-float { animation: mm-float 3.6s ease-in-out infinite; }
+  .mm-float-slow { animation: mm-float 4.6s ease-in-out infinite; }
+  .mm-spin { animation: mm-spin 30s linear infinite; }
+  .mm-rise { animation: mm-rise 0.34s cubic-bezier(0.22, 1, 0.36, 1) both; }
+  .mm-nudge { animation: mm-nudge 2.4s ease-in-out infinite; }
+}
+
 @layer utilities {
   .no-scrollbar::-webkit-scrollbar {
     display: none;
