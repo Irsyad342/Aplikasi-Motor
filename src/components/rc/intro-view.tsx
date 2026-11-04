@@ -5,7 +5,8 @@
  * Struktur:
  * • ATAS   : brand MotoMate (logo + wordmark) dan tombol Lewati.
  * • TENGAH : ilustrasi besar dari CSS murni (smartphone profil kendaraan,
- *            perawatan, riwayat & biaya). Tiga slide berdiri di sebuah
+ *            perawatan, riwayat & biaya, serta pratinjau tema terang/gelap
+ *            yang bisa diklik langsung). Empat slide berdiri di sebuah
  *            track yang digeser dengan translateX — tanpa mount/unmount,
  *            tanpa gesture, tanpa library animasi.
  * • BAWAH  : indikator halaman (bisa diklik) + tombol kembali kecil,
@@ -28,6 +29,7 @@ import {
   Bike,
   CalendarDays,
   ChartColumn,
+  Check,
   Disc3,
   Droplets,
   Gauge,
@@ -57,6 +59,11 @@ const SLIDES = [
     key: 'riwayat',
     title: 'Everything Under Control',
     desc: 'Catat riwayat perawatan dan pengeluaran kendaraan agar pengelolaan motor menjadi lebih teratur.',
+  },
+  {
+    key: 'tema',
+    title: 'Your Style, Your Ride',
+    desc: 'Pilih tampilan terang untuk siang hari atau gelap yang nyaman di malam hari. Ketuk pratinjau untuk mencoba.',
   },
 ] as const
 
@@ -346,6 +353,170 @@ function IllustrationHistory({ active }: { active: boolean }) {
 
 const ILLUSTRATIONS = [IllustrationVehicle, IllustrationMaintenance, IllustrationHistory]
 
+/* ---------- ILUSTRASI SLIDE 4: pratinjau tema terang & gelap, bisa diklik ---------- */
+
+/** pratinjau mini dengan warna statis — sengaja tidak mengikuti tema
+    aplikasi agar perbedaan terang dan gelap selalu terlihat berdampingan */
+function MiniPhone({ mode }: { mode: 'light' | 'dark' }) {
+  const dark = mode === 'dark'
+  const surface = dark ? 'border-white/10 bg-[#262823]' : 'border-[#101110]/10 bg-white'
+  const row = dark ? 'bg-[#32342c]' : 'bg-[#ecece7]'
+  const text = dark ? 'text-[#f3f3f0]' : 'text-[#101110]'
+  const sub = dark ? 'text-[#b8bab2]' : 'text-[#63655f]'
+  const ok = dark ? 'text-[#dfff00]' : 'text-[#a4cc0d]'
+  const warn = dark ? 'text-[#f5c518]' : 'text-[#e8a317]'
+
+  return (
+    <span aria-hidden="true" className={cn('block w-full rounded-[18px] border p-2', surface)}>
+      {/* bar aplikasi mini */}
+      <span className="flex items-center gap-1 px-0.5 pb-1.5">
+        <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-md bg-[#dfff00]">
+          <Bike size={9} className="text-[#101110]" strokeWidth={2.6} />
+        </span>
+        <span className={cn('text-[7.5px] font-extrabold tracking-tight', text)}>MotoMate</span>
+        <span className={cn('ml-auto h-1 w-1 rounded-full', dark ? 'bg-[#dfff00]' : 'bg-[#a4cc0d]')} />
+      </span>
+
+      {/* kartu kendaraan mini */}
+      <span className="block rounded-[12px] bg-[#dfff00] p-1.5">
+        <span className="flex items-center gap-1">
+          <span className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-md bg-[#101110]/10">
+            <Bike size={10} className="text-[#101110]" strokeWidth={2.4} />
+          </span>
+          <span className="min-w-0">
+            <span className="block truncate text-[7.5px] font-extrabold leading-tight text-[#101110]">Beat Sto</span>
+            <span className="block text-[6px] font-bold uppercase tracking-wider text-[#101110]/60">B 6421 XYZ</span>
+          </span>
+        </span>
+        <span className="mt-1 flex items-end justify-between rounded-[8px] bg-[#101110]/10 px-1.5 py-1">
+          <span>
+            <span className="block text-[5.5px] font-bold uppercase tracking-wider text-[#101110]/60">Odometer</span>
+            <span className="block text-[10px] font-extrabold leading-tight text-[#101110]">12.400 km</span>
+          </span>
+          <Gauge size={9} className="text-[#101110]/70" />
+        </span>
+      </span>
+
+      {/* kondisi komponen mini */}
+      <span className="mt-1.5 block space-y-1">
+        <span className={cn('flex items-center gap-1 rounded-lg px-1.5 py-1', row)}>
+          <span className={cn('h-1 w-1 shrink-0 rounded-full', dark ? 'bg-[#dfff00]' : 'bg-[#a4cc0d]')} />
+          <span className={cn('text-[7px] font-bold', text)}>Oli mesin</span>
+          <span className={cn('ml-auto text-[6.5px] font-extrabold', ok)}>Sehat</span>
+        </span>
+        <span className={cn('flex items-center gap-1 rounded-lg px-1.5 py-1', row)}>
+          <span className="h-1 w-1 shrink-0 rounded-full bg-[#f5c518]" />
+          <span className={cn('text-[7px] font-bold', text)}>Rem cakram</span>
+          <span className={cn('ml-auto text-[6.5px] font-extrabold', warn)}>Cek 40%</span>
+        </span>
+      </span>
+
+      {/* kesehatan motor mini */}
+      <span className="mt-1.5 block px-0.5 pb-0.5">
+        <span className={cn('flex items-center justify-between text-[6px] font-bold', sub)}>
+          <span>Kesehatan motor</span>
+          <span className={text}>86%</span>
+        </span>
+        <span className={cn('mt-0.5 block h-1 overflow-hidden rounded-full', row)}>
+          <span className="block h-full w-[86%] rounded-full bg-[#dfff00]" />
+        </span>
+      </span>
+    </span>
+  )
+}
+
+/** pratinjau yang bisa diklik — menerapkan tema lewat next-themes aplikasi */
+function ThemePreview({
+  mode,
+  label,
+  icon: Icon,
+  tilt,
+  selected,
+  onSelect,
+}: {
+  mode: 'light' | 'dark'
+  label: string
+  icon: LucideIcon
+  tilt: string
+  selected: boolean
+  onSelect: (mode: 'light' | 'dark') => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(mode)}
+      aria-pressed={selected}
+      aria-label={`Gunakan tema ${label}`}
+      className="press flex w-[118px] shrink-0 flex-col items-center rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring/40 sm:w-[132px]"
+    >
+      <span
+        className={cn(
+          'relative block w-full rounded-[22px] p-1 ring-2 transition-[box-shadow] duration-300',
+          selected ? 'ring-lime ring-offset-2 ring-offset-background' : 'ring-transparent'
+        )}
+      >
+        <span aria-hidden="true" className={cn('block', tilt)}>
+          <MiniPhone mode={mode} />
+        </span>
+        {selected && (
+          <span className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-lime shadow-md ring-2 ring-background">
+            <Check size={12} className="text-on-lime" strokeWidth={3} />
+          </span>
+        )}
+      </span>
+      <span
+        className={cn(
+          'mt-2.5 flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-extrabold transition-colors duration-300',
+          selected ? 'bg-lime text-on-lime' : 'bg-muted text-muted-foreground'
+        )}
+      >
+        <Icon size={11} strokeWidth={2.4} />
+        {label}
+      </span>
+    </button>
+  )
+}
+
+function IllustrationTheme({
+  active,
+  theme,
+  onSelect,
+}: {
+  active: boolean
+  theme: 'light' | 'dark'
+  onSelect: (mode: 'light' | 'dark') => void
+}) {
+  return (
+    <div className="relative flex h-full w-full items-center justify-center [@media(max-height:660px)]:scale-90">
+      <SoftGlow />
+      <span
+        aria-hidden="true"
+        className={cn('absolute h-[280px] w-[280px] rounded-full border border-dashed border-lime/50', active && 'mm-spin')}
+      />
+      <span aria-hidden="true" className="absolute h-[340px] w-[340px] rounded-full border border-border/50" />
+
+      <div className="relative flex items-start gap-3 sm:gap-4">
+        <ThemePreview
+          mode="light"
+          label="Terang"
+          icon={Sun}
+          tilt="-rotate-3 translate-y-1"
+          selected={theme === 'light'}
+          onSelect={onSelect}
+        />
+        <ThemePreview
+          mode="dark"
+          label="Gelap"
+          icon={Moon}
+          tilt="rotate-3 -translate-y-1"
+          selected={theme === 'dark'}
+          onSelect={onSelect}
+        />
+      </div>
+    </div>
+  )
+}
+
 /* ---------- komponen utama ---------- */
 export function IntroView({ onDone }: { onDone: () => void }) {
   const [slide, setSlide] = useState(0)
@@ -356,6 +527,13 @@ export function IntroView({ onDone }: { onDone: () => void }) {
   const { resolvedTheme, setTheme } = useTheme()
   const mounted = useMounted()
   const dark = mounted && resolvedTheme === 'dark'
+  const previewTheme: 'light' | 'dark' = dark ? 'dark' : 'light'
+
+  /** pilihan tema dari slide pengenalan — langsung disimpan next-themes */
+  const applyThemeChoice = useCallback(
+    (mode: 'light' | 'dark') => setTheme(mode),
+    [setTheme]
+  )
 
   const go = useCallback((next: number) => {
     setSlide(Math.max(0, Math.min(SLIDES.length - 1, next)))
@@ -413,16 +591,26 @@ export function IntroView({ onDone }: { onDone: () => void }) {
         </header>
 
         {/* ===== TENGAH: track ilustrasi, digeser dengan transform CSS ===== */}
-        <main className="relative flex-1 overflow-hidden" aria-hidden="true">
+        <main className="relative flex-1 overflow-hidden">
           <div
             className="flex h-full transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform"
             style={{ transform: `translateX(-${slide * 100}%)` }}
           >
-            {ILLUSTRATIONS.map((Ill, i) => (
-              <section key={SLIDES[i].key} className="h-full w-full shrink-0 px-4 sm:px-6">
-                <Ill active={slide === i} />
-              </section>
-            ))}
+            {SLIDES.map((s, i) => {
+              if (s.key === 'tema') {
+                return (
+                  <section key={s.key} className="h-full w-full shrink-0 px-4 sm:px-6">
+                    <IllustrationTheme active={slide === i} theme={previewTheme} onSelect={applyThemeChoice} />
+                  </section>
+                )
+              }
+              const Ill = ILLUSTRATIONS[i]
+              return (
+                <section key={s.key} className="h-full w-full shrink-0 px-4 sm:px-6">
+                  <Ill active={slide === i} />
+                </section>
+              )
+            })}
           </div>
         </main>
 
