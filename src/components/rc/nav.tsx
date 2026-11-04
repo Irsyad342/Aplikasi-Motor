@@ -4,7 +4,7 @@ import { motion } from 'framer-motion'
 import { Bike, House, Route, Wrench } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-export type View = 'home' | 'ride' | 'maint' | 'vehicle' | 'history' | 'bengkel' | 'settings'
+export type View = 'home' | 'ride' | 'maint' | 'vehicle' | 'history' | 'bengkel' | 'cvt' | 'settings'
 
 const ITEMS = [
   { key: 'home', label: 'Beranda', icon: House },

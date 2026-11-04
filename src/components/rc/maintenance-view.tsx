@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowUpRight, Bike, Check, MapPin, Plus, Wrench } from 'lucide-react'
+import { ArrowUpRight, Bike, Check, Cog, MapPin, Plus, Wrench } from 'lucide-react'
 import type { ComponentDTO, RecordDTO, VehicleDTO } from '@/lib/state'
 import {
   formatKm,
@@ -30,6 +30,7 @@ export interface MaintenanceViewProps {
   onOpenService: (c: ComponentDTO) => void
   onInstall: (c: ComponentDTO) => void
   onOpenBengkel: () => void
+  onOpenCvtGuide: () => void
   selectMode: boolean
   selectedIds: Set<string>
   onToggleSelect: (c: ComponentDTO) => void
@@ -89,6 +90,7 @@ export function MaintenanceView({
   onOpenService,
   onInstall,
   onOpenBengkel,
+  onOpenCvtGuide,
   selectMode,
   selectedIds,
   onToggleSelect,
@@ -314,6 +316,26 @@ export function MaintenanceView({
           </div>
         </motion.section>
       )}
+
+      {/* Panduan khusus — halaman terpisah Perawatan CVT & Throttle Body */}
+      <motion.div {...fade}>
+        <Card padded={false} onClick={onOpenCvtGuide} className="flex items-center gap-3 p-4">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-lime text-on-lime">
+            <Cog size={20} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-extrabold text-foreground">Perawatan CVT & Throttle Body</p>
+            <p className="text-[12px] text-muted-foreground">Panduan lengkap: jadwal, langkah servis, tanda masalah & tips</p>
+          </div>
+          {/* span, bukan tombol — Card sudah jadi <button>, hindari button bersarang */}
+          <span
+            aria-hidden="true"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-ink text-background"
+          >
+            <ArrowUpRight size={18} />
+          </span>
+        </Card>
+      </motion.div>
 
       {/* CTA bengkel */}
       <motion.div {...fade}>

@@ -140,24 +140,39 @@ export async function buildState(
   // belum terpasang (muncul di katalog Perawatan).
   let components = componentRows
   const missing = catalogItems.filter((i) => !components.some((c) => c.key === i.key))
-  if (missing.length > 0) {
-    await db.component.createMany({
-      data: missing.map((i) => ({
-        vehicleId: vehicle.id,
-        key: i.key,
-        name: i.name,
-        icon: i.icon,
-        intervalKm: i.intervalKm,
-        intervalDays: i.intervalDays,
-        recommendedKm: i.intervalKm,
-        recommendedDays: i.intervalDays,
-        lastServiceOdo: vehicle.odometer,
-        lastServiceDate: now,
-        hasService: false,
-        installed: false,
-      })),
-      skipDuplicates: true,
-    })
+
+  // Bersihkan komponen yang sudah tidak ada di katalog (mis. 'servis-cvt'
+  // digantikan halaman panduan Perawatan CVT & Throttle Body). Riwayat servis
+  // terkait ikut terhapus otomatis (cascade).
+  const extraKeys = components
+    .map((c) => c.key)
+    .filter((k) => !catalogItems.some((i) => i.key === k))
+
+  if (missing.length > 0 || extraKeys.length > 0) {
+    if (missing.length > 0) {
+      await db.component.createMany({
+        data: missing.map((i) => ({
+          vehicleId: vehicle.id,
+          key: i.key,
+          name: i.name,
+          icon: i.icon,
+          intervalKm: i.intervalKm,
+          intervalDays: i.intervalDays,
+          recommendedKm: i.intervalKm,
+          recommendedDays: i.intervalDays,
+          lastServiceOdo: vehicle.odometer,
+          lastServiceDate: now,
+          hasService: false,
+          installed: false,
+        })),
+        skipDuplicates: true,
+      })
+    }
+    if (extraKeys.length > 0) {
+      await db.component.deleteMany({
+        where: { vehicleId: vehicle.id, key: { in: extraKeys } },
+      })
+    }
     components = await db.component.findMany({
       where: { vehicleId: vehicle.id },
       orderBy: [{ installed: 'desc' }, { name: 'asc' }],

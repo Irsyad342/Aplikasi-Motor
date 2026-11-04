@@ -41,6 +41,7 @@ import { HomeView } from '@/components/rc/home-view'
 import { RideView } from '@/components/rc/ride-view'
 import { AuthView, type AuthUser } from '@/components/rc/auth-view'
 import { MaintenanceView } from '@/components/rc/maintenance-view'
+import { CvtGuideView } from '@/components/rc/cvt-guide-view'
 import { VehicleView } from '@/components/rc/vehicle-view'
 import { HistoryView } from '@/components/rc/history-view'
 import { SettingsView } from '@/components/rc/settings-view'
@@ -934,6 +935,7 @@ export default function Home() {
                   onOpenService={(c) => setServiceOpen({ open: true, componentId: c.id })}
                   onInstall={(c) => setInstallOpen({ open: true, componentId: c.id })}
                   onOpenBengkel={() => setView('bengkel')}
+                  onOpenCvtGuide={() => setView('cvt')}
                   selectMode={selectMode}
                   selectedIds={selectedIds}
                   onToggleSelect={toggleSelectComponent}
@@ -981,6 +983,15 @@ export default function Home() {
               )}
 
               {view === 'bengkel' && <BengkelView onBack={() => setView('home')} />}
+
+              {view === 'cvt' && (
+                <CvtGuideView
+                  components={state.components}
+                  onBack={() => setView('maint')}
+                  onOpenBengkel={() => setView('bengkel')}
+                  onOpenDetail={setOpenDetailId}
+                />
+              )}
           </div>
         </main>
 

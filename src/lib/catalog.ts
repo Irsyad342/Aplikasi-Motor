@@ -119,15 +119,6 @@ export const MOTOR_CATALOG: CatalogItem[] = [
     info: 'Roller CVT mengatur perpindahan gigi otomatis. Flat spot membuat tarikan tidak halus.',
   },
   {
-    key: 'servis-cvt',
-    name: 'Servis CVT',
-    icon: 'cog',
-    intervalKm: 8000,
-    intervalDays: 180,
-    category: 'cvt',
-    info: 'Servis rutin CVT mencakup pembersihan rumah CVT dan pemeriksaan roller serta kampas kopling. Lakukan setiap 8.000 km agar tarikan tetap halus.',
-  },
-  {
     key: 'throttle-body',
     name: 'Throttle Body',
     icon: 'gauge',
