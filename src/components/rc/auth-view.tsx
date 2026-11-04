@@ -53,7 +53,7 @@ const MINI_SLIDES = [
   {
     icon: CircleDollarSign,
     title: 'Biaya & analitik',
-    desc: 'Grafik pengeluaran bulanan — bensin, parkir, dan servis.',
+    desc: 'Grafik pengeluaran bulanan: bensin, parkir, dan servis.',
   },
 ] as const
 
@@ -186,7 +186,7 @@ export function AuthView({ onAuthed }: { onAuthed: (user: AuthUser) => void }) {
       })
       const data = (await res.json().catch(() => ({}))) as { user?: AuthUser; error?: string }
       if (!res.ok || !data.user) {
-        throw new Error(data.error || 'Terjadi kesalahan — coba lagi')
+        throw new Error(data.error || 'Terjadi kesalahan, coba lagi')
       }
       onAuthed(data.user)
     } catch (err) {
@@ -358,7 +358,7 @@ export function AuthView({ onAuthed }: { onAuthed: (user: AuthUser) => void }) {
           <Stagger delay={0.33}>
             <div className="mt-5 border-t border-border/60 pt-4">
               <p className="mb-2.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                Kenali MotoMate — geser
+                Kenali MotoMate, geser untuk lihat
               </p>
               <MiniIntroCarousel />
             </div>

@@ -23,6 +23,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ user: { id: user.id, name: user.name, email: user.email } })
   } catch (e) {
     console.error('login error', e)
-    return NextResponse.json({ error: 'Gagal masuk — coba lagi' }, { status: 500 })
+    return NextResponse.json({ error: 'Gagal masuk, coba lagi' }, { status: 500 })
   }
 }

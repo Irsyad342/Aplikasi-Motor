@@ -392,7 +392,7 @@ export default function Home() {
           if (err.code === err.PERMISSION_DENIED) {
             stopTrackingSensors()
             abortTrackingUi()
-            toast.error('Akses lokasi ditolak — izinkan lokasi untuk MotoMate di pengaturan browser', {
+            toast.error('Akses lokasi ditolak. Izinkan lokasi untuk MotoMate di pengaturan browser', {
               duration: 6000,
             })
             return
@@ -401,7 +401,7 @@ export default function Home() {
           // coba ulang lewat lokasi jaringan (menara seluler / Wi-Fi).
           if (!watchLowAccRef.current) {
             watchLowAccRef.current = true
-            toast('GPS presisi sulit didapat — mencari lewat jaringan…')
+            toast('GPS presisi sulit didapat, mencari lewat jaringan…')
             watch(false)
           }
         },
@@ -414,7 +414,7 @@ export default function Home() {
     }
     watch(true)
 
-    toast.success('Mencari sinyal GPS — perekaman dimulai')
+    toast.success('Mencari sinyal GPS, perekaman dimulai')
   }, [locPos, locStatusRaw, locRefresh, stopTrackingSensors, abortTrackingUi])
 
   const finishTracking = useCallback(async () => {
@@ -426,7 +426,7 @@ export default function Home() {
     // Tanpa satu pun titik GPS = tidak ada data nyata → jangan simpan perjalanan kosong
     if (tracking.geoFixes === 0 || distance < 0.01) {
       abortTrackingUi()
-      toast.error('Belum ada data GPS — perjalanan tidak disimpan. Nyalakan GPS lalu coba lagi.')
+      toast.error('Belum ada data GPS, perjalanan tidak disimpan. Nyalakan GPS lalu coba lagi.')
       return
     }
     const pathJson = pathRef.current.length >= 2 ? JSON.stringify(pathRef.current) : null
@@ -472,7 +472,7 @@ export default function Home() {
       try {
         await api(`/api/components/${c.id}`, 'PATCH', { action: 'install', installKm })
         await loadState(vehicleId ?? undefined)
-        toast.success(`${c.name} dipasang — sisa pakai mulai dipantau`)
+        toast.success(`${c.name} dipasang, sisa pakai mulai dipantau`)
       } catch (e) {
         toast.error(e instanceof Error ? e.message : 'Gagal menambah komponen')
       }
@@ -516,7 +516,7 @@ export default function Home() {
         try {
           await api(`/api/trips/${id}`, 'DELETE')
           if (vehicle) await loadState(vehicle.id)
-          toast.success('Perjalanan dihapus — odometer disesuaikan')
+          toast.success('Perjalanan dihapus, odometer disesuaikan')
         } catch (e) {
           setState(prev) // gagal → kembalikan seperti semula
           toast.error(e instanceof Error ? e.message : 'Gagal menghapus perjalanan')
@@ -530,7 +530,7 @@ export default function Home() {
     async (id: string, data: { distance: number; date: string }) => {
       await api(`/api/trips/${id}`, 'PATCH', data)
       await loadState(vehicleId ?? undefined)
-      toast.success('Perjalanan diperbarui — odometer disesuaikan')
+      toast.success('Perjalanan diperbarui, odometer disesuaikan')
     },
     [loadState, vehicleId]
   )
@@ -592,7 +592,7 @@ export default function Home() {
       try {
         await api(`/api/records/${id}`, 'DELETE')
         await loadState(vehicleId ?? undefined)
-        toast.success('Catatan dihapus — sisa pakai komponen disesuaikan')
+        toast.success('Catatan dihapus, sisa pakai komponen disesuaikan')
       } catch (e) {
         setState(prev)
         toast.error(e instanceof Error ? e.message : 'Gagal menghapus catatan')
@@ -757,7 +757,7 @@ export default function Home() {
     setOpenDetailId(null)
     setView('home')
     await loadState()
-    toast.success('Semua data berhasil dihapus — mulai dari awal')
+    toast.success('Semua data berhasil dihapus, mulai dari awal')
   }, [loadState])
 
   const markSelectedGanti = useCallback(async () => {
@@ -786,7 +786,7 @@ export default function Home() {
     const ids = Array.from(selectedIds)
     try {
       await Promise.all(ids.map((id) => api(`/api/components/${id}`, 'DELETE')))
-      toast.success(`${ids.length} komponen dilepas — pindah ke katalog`)
+      toast.success(`${ids.length} komponen dilepas, pindah ke katalog`)
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Gagal melepas komponen')
     }
@@ -1350,7 +1350,7 @@ function GpsHelpSheet({
         ]
       : [
           'Tarik panel kontrol cepat (quick settings) ponsel, lalu aktifkan "Lokasi / GPS"',
-          'Keluar ke area terbuka — sinyal GPS sulit didapat di dalam ruangan atau di bawah atap',
+          'Keluar ke area terbuka, sinyal GPS sulit didapat di dalam ruangan atau di bawah atap',
           'Jika tetap gagal, buka pengaturan situs web: ketuk ikon gembok (🔒) di address bar → "Izin" → "Lokasi" → "Izinkan"',
         ]
 
@@ -1986,7 +1986,7 @@ function ExpenseSheet({
 
         {category === 'bensin' && (
           <>
-            <Field label="Berapa liter?" hint={`Tombol menyesuaikan kapasitas tangki (${tankL} L) — bisa diubah di bawah`}>
+            <Field label="Berapa liter?" hint={`Tombol menyesuaikan kapasitas tangki (${tankL} L), bisa diubah di bawah`}>
               <div className="grid grid-cols-5 gap-2">
                 {literOptions.map((n) => {
                   const active = ltrNum === n

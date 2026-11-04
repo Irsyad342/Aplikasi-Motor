@@ -370,7 +370,7 @@ export function HistoryView({
                             Semua komponen sehat
                           </p>
                           <p className="mt-0.5 text-[12px] text-muted-foreground">
-                            Tidak ada yang perlu diganti sekarang — pertahankan rutinitas servis.
+                            Tidak ada yang perlu diganti sekarang. Pertahankan rutinitas servis.
                           </p>
                         </div>
                       </div>

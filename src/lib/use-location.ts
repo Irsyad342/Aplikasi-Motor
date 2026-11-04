@@ -104,7 +104,7 @@ export function useLocation(): UseLocationResult {
     const onFail = (err: GeolocationPositionError) => {
       if (err.code === err.PERMISSION_DENIED) {
         setStatus('denied')
-        setError('Izin lokasi belum diberikan — aktifkan akses lokasi di browser')
+        setError('Izin lokasi belum diberikan, aktifkan akses lokasi di browser')
         return
       }
       // GPS presisi tinggi timeout -> coba sekali lagi via lokasi jaringan (coarse)
@@ -118,7 +118,7 @@ export function useLocation(): UseLocationResult {
         return
       }
       setStatus('unavailable')
-      setError('GPS tidak tersedia saat ini — coba lagi di area terbuka')
+      setError('GPS tidak tersedia saat ini, coba lagi di area terbuka')
     }
     lowAccRef.current = false
     navigator.geolocation.getCurrentPosition(

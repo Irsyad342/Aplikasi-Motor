@@ -244,7 +244,7 @@ export function HomeView({
               <HighlightTile
                 label="Servis"
                 dot={installed.length > 0 ? 'lime' : null}
-                value={installed.length > 0 ? 'Aman' : '—'}
+                value={installed.length > 0 ? 'Aman' : '0'}
                 sub={installed.length > 0 ? 'Semua sehat' : 'Belum ada'}
               />
             )}

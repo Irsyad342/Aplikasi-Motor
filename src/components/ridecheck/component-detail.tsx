@@ -219,7 +219,7 @@ export function ComponentDetail({
                     <span className="font-bold text-foreground">
                       {formatKm(Math.min(component.intervalKm, Math.max(0, vehicle.odometer - component.lastServiceOdo)))} km
                     </span>{' '}
-                    dari {formatKm(component.intervalKm)} km — bertambah otomatis seiring odometer naik
+                    dari {formatKm(component.intervalKm)} km. Bertambah otomatis seiring odometer naik
                   </p>
                 )}
 

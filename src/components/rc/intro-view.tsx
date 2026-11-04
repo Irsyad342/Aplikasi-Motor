@@ -98,29 +98,54 @@ function SwipeSection({
   )
 }
 
-/* ---------- pratinjau mini untuk tiap tema ---------- */
+/* ---------- pratinjau mini untuk tiap tema (warna tetap, tidak ikut tema) ---------- */
 function ThemePreview({ value }: { value: 'light' | 'dark' | 'system' }) {
-  // imitasi layar aplikasi: app bar + baris konten + aksi lime
-  return (
-    <span
-      className={cn(
-        'relative flex h-[72px] w-full flex-col gap-1 overflow-hidden rounded-xl p-2 ring-1',
-        value === 'light' && 'bg-white text-ink ring-black/10',
-        value === 'dark' && 'bg-ink text-[#f3f3f0] ring-white/10',
-        value === 'system' && 'bg-white text-ink ring-black/10'
-      )}
-    >
-      {/* app bar palsu */}
-      <span className="flex items-center gap-1.5">
-        <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-lime" />
-        <span className="h-1.5 w-1/2 rounded-full bg-current opacity-60" />
+  if (value === 'light') {
+    return (
+      <span className="flex h-[72px] w-full flex-col gap-1.5 overflow-hidden rounded-xl bg-white p-2 ring-1 ring-black/10">
+        <span className="flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-[#dfff00]" />
+          <span className="h-1.5 w-1/2 rounded-full bg-[#101110]/60" />
+        </span>
+        <span className="h-1.5 w-3/4 rounded-full bg-[#101110]/35" />
+        <span className="h-1.5 w-2/3 rounded-full bg-[#101110]/20" />
+        <span className="mt-auto h-4 w-full rounded-md bg-[#dfff00]" />
       </span>
-      <span className="h-1.5 w-3/4 rounded-full bg-current opacity-40" />
-      <span className="h-1.5 w-2/3 rounded-full bg-current opacity-25" />
-      <span className="mt-auto h-4 w-full rounded-md bg-lime" />
-      {value === 'system' && (
-        <span aria-hidden="true" className="absolute inset-y-0 right-0 w-1/2 bg-ink" />
-      )}
+    )
+  }
+  if (value === 'dark') {
+    return (
+      <span className="flex h-[72px] w-full flex-col gap-1.5 overflow-hidden rounded-xl bg-[#101110] p-2 ring-1 ring-white/15">
+        <span className="flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-[#dfff00]" />
+          <span className="h-1.5 w-1/2 rounded-full bg-[#f3f3f0]/60" />
+        </span>
+        <span className="h-1.5 w-3/4 rounded-full bg-[#f3f3f0]/35" />
+        <span className="h-1.5 w-2/3 rounded-full bg-[#f3f3f0]/20" />
+        <span className="mt-auto h-4 w-full rounded-md bg-[#dfff00]" />
+      </span>
+    )
+  }
+  // sistem: kiri terang, kanan gelap
+  return (
+    <span className="relative flex h-[72px] w-full overflow-hidden rounded-xl ring-1 ring-black/10">
+      <span className="flex w-1/2 flex-col gap-1.5 bg-white p-2">
+        <span className="flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-[#dfff00]" />
+          <span className="h-1.5 w-full rounded-full bg-[#101110]/60" />
+        </span>
+        <span className="h-1.5 w-3/4 rounded-full bg-[#101110]/35" />
+        <span className="h-1.5 w-2/3 rounded-full bg-[#101110]/20" />
+      </span>
+      <span className="flex w-1/2 flex-col gap-1.5 bg-[#101110] p-2">
+        <span className="flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-[#dfff00]" />
+          <span className="h-1.5 w-full rounded-full bg-[#f3f3f0]/60" />
+        </span>
+        <span className="h-1.5 w-3/4 rounded-full bg-[#f3f3f0]/35" />
+        <span className="h-1.5 w-2/3 rounded-full bg-[#f3f3f0]/20" />
+      </span>
+      <span aria-hidden="true" className="absolute inset-x-2 bottom-2 h-4 rounded-md bg-[#dfff00]" />
     </span>
   )
 }
@@ -204,39 +229,39 @@ export function IntroView({ onDone }: { onDone: () => void }) {
             {slide === 0 && (
               <SwipeSection k="s0" dir={dir} onSwipeLeft={next} onSwipeRight={back}>
                 <motion.div variants={stagger} initial="enter" animate="center" exit="exit" className="flex flex-1 flex-col">
-                  <motion.div variants={rise} className="flex items-center justify-center pt-1">
+                  <motion.div variants={rise} className="flex items-center justify-center pt-2">
                     <div className="relative">
                       {/* cincin dekoratif */}
                       <motion.span
                         aria-hidden="true"
-                        className="absolute -inset-7 rounded-full border border-dashed border-lime/50"
+                        className="absolute -inset-10 rounded-full border border-dashed border-lime/50"
                         animate={{ rotate: 360 }}
                         transition={{ duration: 26, ease: 'linear', repeat: Infinity }}
                       />
-                      <span className="relative flex h-[72px] w-[72px] items-center justify-center rounded-[24px] bg-lime shadow-[0_10px_30px_rgba(163,230,53,0.35)]">
-                        <Bike size={36} className="text-on-lime" strokeWidth={2} />
+                      <span className="relative flex h-24 w-24 items-center justify-center rounded-[30px] bg-lime shadow-[0_14px_38px_rgba(163,230,53,0.4)]">
+                        <Bike size={46} className="text-on-lime" strokeWidth={2} />
                       </span>
                       {/* chip ikon mengambang */}
                       <motion.span
-                        className="absolute -left-11 top-1 flex h-10 w-10 items-center justify-center rounded-2xl border border-border/60 bg-background shadow-sm"
-                        animate={{ y: [0, -6, 0] }}
+                        className="absolute -left-14 top-0 flex h-12 w-12 items-center justify-center rounded-2xl border border-border/60 bg-background shadow-sm"
+                        animate={{ y: [0, -7, 0] }}
                         transition={{ duration: 2.6, repeat: Infinity, ease: 'easeInOut' }}
                       >
-                        <Wrench size={17} className="text-foreground" />
+                        <Wrench size={21} className="text-foreground" />
                       </motion.span>
                       <motion.span
-                        className="absolute -right-12 top-8 flex h-10 w-10 items-center justify-center rounded-2xl border border-border/60 bg-background shadow-sm"
-                        animate={{ y: [0, 6, 0] }}
+                        className="absolute -right-14 top-10 flex h-12 w-12 items-center justify-center rounded-2xl border border-border/60 bg-background shadow-sm"
+                        animate={{ y: [0, 7, 0] }}
                         transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', delay: 0.4 }}
                       >
-                        <Route size={17} className="text-foreground" />
+                        <Route size={21} className="text-foreground" />
                       </motion.span>
                       <motion.span
-                        className="absolute -bottom-4 left-2 flex h-10 w-10 items-center justify-center rounded-2xl border border-border/60 bg-background shadow-sm"
-                        animate={{ y: [0, 5, 0] }}
+                        className="absolute -bottom-5 left-2 flex h-12 w-12 items-center justify-center rounded-2xl border border-border/60 bg-background shadow-sm"
+                        animate={{ y: [0, 6, 0] }}
                         transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut', delay: 0.8 }}
                       >
-                        <CircleDollarSign size={17} className="text-foreground" />
+                        <CircleDollarSign size={21} className="text-foreground" />
                       </motion.span>
                     </div>
                   </motion.div>
@@ -253,7 +278,7 @@ export function IntroView({ onDone }: { onDone: () => void }) {
                     variants={rise}
                     className="mx-auto mt-2.5 max-w-[300px] text-center text-[13.5px] leading-relaxed text-muted-foreground"
                   >
-                    MotoMate membantu kamu merawat motor tanpa ribet — tahu kapan
+                    MotoMate membantu kamu merawat motor tanpa ribet: tahu kapan
                     komponen perlu diganti, mencatat perjalanan, dan mengontrol
                     pengeluaran.
                   </motion.p>
@@ -303,7 +328,7 @@ export function IntroView({ onDone }: { onDone: () => void }) {
                     >
                       <ShieldCheck size={18} className="shrink-0 text-foreground" />
                       <p className="text-[12px] font-semibold leading-snug text-muted-foreground">
-                        Datamu tersimpan aman di akunmu sendiri — tidak ada data
+                        Datamu tersimpan aman di akunmu sendiri. Tidak ada data
                         contoh, semua mulai bersih.
                       </p>
                     </motion.div>
@@ -333,7 +358,7 @@ export function IntroView({ onDone }: { onDone: () => void }) {
                         {
                           icon: Wrench,
                           title: 'Pemantau komponen',
-                          desc: 'Oli, busi, rem, hingga filter — sisa pakai dihitung otomatis dari odometer & waktu.',
+                          desc: 'Oli, busi, rem, hingga filter. Sisa pakai dihitung otomatis dari odometer & waktu.',
                         },
                         {
                           icon: Route,
@@ -343,7 +368,7 @@ export function IntroView({ onDone }: { onDone: () => void }) {
                         {
                           icon: CircleDollarSign,
                           title: 'Biaya & analitik',
-                          desc: 'Bensin, parkir, servis — lihat grafik pengeluaran bulanan biar hemat.',
+                          desc: 'Bensin, parkir, servis. Lihat grafik pengeluaran bulanan biar hemat.',
                         },
                       ] as const
                     ).map((f, i) => {
@@ -498,7 +523,7 @@ export function IntroView({ onDone }: { onDone: () => void }) {
                       </span>
                       <p className="text-[12px] font-semibold leading-snug text-muted-foreground">
                         <span className="font-extrabold text-foreground">Tips:</span> mode Gelap
-                        bikin nyaman dipakai malam hari — ubah kapan saja di Pengaturan.
+                        bikin nyaman dipakai malam hari, ubah kapan saja di Pengaturan.
                       </p>
                     </motion.div>
                   </div>

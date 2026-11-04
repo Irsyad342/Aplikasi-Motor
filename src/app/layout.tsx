@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "MotoMate — Pelacak Perawatan Motor",
+  title: "MotoMate, Pelacak Perawatan Motor",
   description:
     "Pantau kondisi komponen motor Anda, catat servis, lacak perjalanan, dan temukan bengkel terdekat di Pulau Jawa.",
   keywords: ["MotoMate", "perawatan motor", "servis motor", "pelacak komponen", "bengkel"],

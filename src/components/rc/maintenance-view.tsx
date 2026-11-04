@@ -160,7 +160,7 @@ export function MaintenanceView({
             </div>
           ) : (
             <p className="mt-5 text-[13px] font-bold leading-snug opacity-90">
-              Belum ada komponen dipantau — pasang dari katalog di bawah untuk mulai memantau kondisi motor.
+              Belum ada komponen dipantau. Pasang dari katalog di bawah untuk mulai memantau kondisi motor.
             </p>
           )}
         </div>

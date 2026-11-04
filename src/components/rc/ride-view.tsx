@@ -273,8 +273,8 @@ export function RideView(props: RideViewProps) {
                   >
                     <MapPinOff size={16} />
                     {locStatus === 'denied'
-                      ? 'Izin lokasi belum diberikan — ketuk untuk panduan'
-                      : 'GPS belum terdeteksi — ketuk untuk panduan aktifkan'}
+                      ? 'Izin lokasi belum diberikan, ketuk untuk panduan'
+                      : 'GPS belum terdeteksi, ketuk untuk panduan aktifkan'}
                   </button>
                 )}
               </div>

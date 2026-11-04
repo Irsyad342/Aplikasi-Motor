@@ -87,7 +87,7 @@ export function EditTripSheet({
           />
         </Field>
         <p className="rounded-2xl bg-muted px-4 py-3 text-[12px] leading-relaxed text-muted-foreground">
-          {HINT_SYNC} — mengubah jarak akan menyesuaikan odometer kendaraan.
+          {HINT_SYNC}. Mengubah jarak akan menyesuaikan odometer kendaraan.
         </p>
         <Btn variant="lime" full onClick={submit} disabled={saving || !trip}>
           {saving ? 'Menyimpan…' : 'Simpan Perubahan'}

@@ -90,11 +90,11 @@ const CVT_SCHEDULE = [
 const CVT_STEPS = [
   'Buka cover rumah CVT di badan tengah motor',
   'Bersihkan debu kampas & kotoran di dalam rumah CVT',
-  'Lepas dan ukur roller — ganti bila flat spot atau bobot berubah',
-  'Cek lebar V-Belt — ganti bila melar atau retak',
+  'Lepas dan ukur roller, ganti bila flat spot atau bobot berubah',
+  'Cek lebar V-Belt, ganti bila melar atau retak',
   'Periksa ketebalan kampas kopling (susah) & per kopling',
   'Rakit kembali, pasang seal & dust cover dengan benar',
-  'Uji jalan — tarikan harus halus tanpa bantingan',
+  'Uji jalan, pastikan tarikan halus tanpa bantingan',
 ]
 
 const CVT_SYMPTOMS = [
@@ -106,17 +106,17 @@ const CVT_SYMPTOMS = [
 ]
 
 const CVT_TIPS = [
-  'Hindari genangan dan banjir — air masuk CVT bikin slip & bantingan',
+  'Hindari genangan dan banjir, air masuk CVT bikin slip & bantingan',
   'Jangan dipakai menarik beban berlebih atau dijadikan motor "tambang"',
   'Gunakan V-Belt, roller, dan kampas original atau setara standar',
-  'Panaskan motor 1–2 menit sebelum dipakai berangkat',
-  'Jangan bongkar rumah CVT sendiri tanpa peralatan — rakitannya presisi',
+  'Panaskan motor 1-2 menit sebelum dipakai berangkat',
+  'Jangan bongkar rumah CVT sendiri tanpa peralatan, rakitannya presisi',
 ]
 
 // ---------- Konten Throttle Body ----------
 
 const TB_SYMPTOMS = [
-  'Idle tidak stabil — putaran mesin naik-turun sendiri',
+  'Idle tidak stabil, putaran mesin naik turun sendiri',
   'Mesin mati mendadak saat idle atau kondisi dingin',
   'Tarikan tersendat / kurang responsif saat gas dibuka',
   'Konsumsi bahan bakar jadi boros',
@@ -126,17 +126,17 @@ const TB_SYMPTOMS = [
 const TB_STEPS = [
   'Buka filter udara dan lepas throttle body dari manifold',
   'Semprot cleaner khusus throttle body ke carbon & butterfly',
-  'Bersihkan duktus udara — jangan gunakan sikat kasar',
+  'Bersihkan duktus udara, jangan gunakan sikat kasar',
   'Cek kondisi filter udara, ganti bila kotor tebal',
   'Pasang kembali dengan seal yang baik',
   'Kalibrasi idle & posisi TPS lewat scanner / tuning FI',
-  'Uji idle — harus stabil sekitar 1.400–1.700 rpm saat dingin menengah',
+  'Uji idle, harus stabil sekitar 1.400-1.700 rpm saat mesin dingin',
 ]
 
 const TB_TIPS = [
-  'Selalu ganti/bersihkan filter udara sesuai jadwal — pencegahan paling murah',
+  'Selalu ganti atau bersihkan filter udara sesuai jadwal, pencegahan paling murah',
   'Gunakan cleaner khusus throttle body, bukan cairan sembarangan',
-  'Setelah dibersihkan WAJIB kalibrasi via scanner — idle bisa kacau tanpa itu',
+  'Setelah dibersihkan WAJIB kalibrasi via scanner, idle bisa kacau tanpa itu',
   'Pilih bengkel injeksi/tuner yang punya scanner untuk motormu',
 ]
 
@@ -441,7 +441,7 @@ function CvtLogSheet({
           </p>
         ) : (
           <p className="rounded-2xl bg-muted/60 px-4 py-3 text-[11px] font-semibold leading-snug text-muted-foreground">
-            Perawatan rutin — sisa pakai komponen tidak berubah, catatan tetap tersimpan.
+            Perawatan rutin: sisa pakai komponen tidak berubah, catatan tetap tersimpan.
           </p>
         )}
 
@@ -691,7 +691,7 @@ export function CvtGuideView({
               </div>
               <p className="mt-3 text-[13px] font-semibold leading-relaxed opacity-90">
                 CVT (Continuously Variable Transmission) adalah jantung transmisi motor matic di
-                badan tengah — meneruskan tenaga mesin ke roda belakang lewat V-Belt dan roller.
+                badan tengah yang meneruskan tenaga mesin ke roda belakang lewat V-Belt dan roller.
                 Bagian ini paling sering bekerja, jadi wajib dirawat rutin agar tarikan tetap
                 halus dan tidak menyebabkan kerusakan mahal.
               </p>
@@ -707,7 +707,7 @@ export function CvtGuideView({
                 ))}
               </div>
               <p className="mt-2 px-1 text-[11px] text-muted-foreground">
-                *Interval umum motor matic — ikuti buku manual motormu bila berbeda.
+                *Interval umum motor matic, ikuti buku manual motormu bila berbeda.
               </p>
             </GuideSection>
           </motion.section>
@@ -760,8 +760,8 @@ export function CvtGuideView({
               <div className="min-w-0">
                 <p className="text-[13px] font-extrabold text-foreground">Estimasi biaya servis CVT</p>
                 <p className="mt-0.5 text-[12px] leading-snug text-muted-foreground">
-                  Bengkel umum ± Rp 75–150 ribu (bersih + cek roller). Bengkel resmi ± Rp 150–300
-                  ribu. Belum termasuk ganti V-Belt / roller — kisaran bisa berbeda tiap daerah.
+                  Bengkel umum ± Rp 75-150 ribu (bersih + cek roller). Bengkel resmi ± Rp 150-300
+                  ribu. Belum termasuk ganti V-Belt atau roller, kisaran bisa berbeda tiap daerah.
                 </p>
               </div>
             </Card>
@@ -779,7 +779,7 @@ export function CvtGuideView({
                 <p className="text-[15px] font-extrabold leading-tight">Apa itu Throttle Body?</p>
               </div>
               <p className="mt-3 text-[13px] font-semibold leading-relaxed opacity-90">
-                Throttle body adalah "gerbang udara" motor injeksi — mengatur berapa banyak udara
+                Throttle body adalah "gerbang udara" motor injeksi yang mengatur berapa banyak udara
                 masuk ke ruang bakar sesuai putaran gas. Jika kotor tersumbat carbon, campuran
                 bahan bakar jadi tidak pas: idle kacau, tarikan tersendat, dan bensin boros.
               </p>
@@ -800,7 +800,7 @@ export function CvtGuideView({
                   icon="wind"
                   title="Filter Udara"
                   km={8000}
-                  note="Cek tiap servis — kotor mempercepat TB kotor"
+                  note="Cek tiap servis, kotor mempercepat TB kotor"
                 />
               </div>
               <p className="mt-2 px-1 text-[11px] text-muted-foreground">
@@ -840,7 +840,7 @@ export function CvtGuideView({
             <div className="flex items-start gap-2.5 rounded-2xl bg-warn/10 p-4 ring-1 ring-warn/30">
               <AlertTriangle size={16} className="mt-0.5 shrink-0 text-warn" />
               <div className="text-[12px] leading-relaxed text-warn">
-                <p className="font-bold">Penting — jangan bongkar sembarangan</p>
+                <p className="font-bold">Penting: jangan bongkar sembarangan</p>
                 <p className="mt-1">
                   Throttle body punya sensor presisi (TPS/MAPE). Jangan digosok atau disemprot
                   sembarangan, dan setelah dibersihkan wajib dikalibrasi lewat scanner. Salah
@@ -872,7 +872,7 @@ export function CvtGuideView({
               <div className="min-w-0">
                 <p className="text-[13px] font-extrabold text-foreground">Estimasi biaya bersih throttle body</p>
                 <p className="mt-0.5 text-[12px] leading-snug text-muted-foreground">
-                  Bengkel umum ± Rp 50–150 ribu. Bengkel resmi bisa lebih — biasanya sudah termasuk
+                  Bengkel umum ± Rp 50-150 ribu. Bengkel resmi bisa lebih, biasanya sudah termasuk
                   kalibrasi scanner. Kisaran berbeda tiap daerah dan tipe motor.
                 </p>
               </div>

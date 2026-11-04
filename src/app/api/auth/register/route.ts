@@ -23,7 +23,7 @@ export async function POST(req: Request) {
 
     const existing = await db.user.findUnique({ where: { email } })
     if (existing) {
-      return NextResponse.json({ error: 'Email sudah terdaftar — silakan masuk' }, { status: 409 })
+      return NextResponse.json({ error: 'Email sudah terdaftar, silakan masuk' }, { status: 409 })
     }
 
     const passwordHash = await hashPassword(password)
@@ -40,6 +40,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ user })
   } catch (e) {
     console.error('register error', e)
-    return NextResponse.json({ error: 'Gagal membuat akun — coba lagi' }, { status: 500 })
+    return NextResponse.json({ error: 'Gagal membuat akun, coba lagi' }, { status: 500 })
   }
 }

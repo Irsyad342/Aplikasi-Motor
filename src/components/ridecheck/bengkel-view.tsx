@@ -189,7 +189,7 @@ export function BengkelView({ onBack }: { onBack?: () => void }) {
                     ? `Dari lokasimu${loc.accuracy ? ` · ±${Math.round(loc.accuracy)} m` : ''}`
                     : 'Lokasi terdeteksi')}
                 {(loc.status === 'denied' || loc.status === 'unavailable') &&
-                  'GPS nonaktif — ketuk untuk coba lagi'}
+                  'GPS nonaktif, ketuk untuk coba lagi'}
               </span>
             </button>
           </div>
@@ -219,7 +219,7 @@ export function BengkelView({ onBack }: { onBack?: () => void }) {
           <div className="text-xs leading-relaxed text-warn">
             <p className="font-bold">Lokasimu di luar Pulau Jawa</p>
             <p className="mt-0.5 text-warn">
-              Cakupan bengkel hanya Pulau Jawa. Menampilkan pusat Jakarta — pilih kota untuk mengubah.
+              Cakupan bengkel hanya Pulau Jawa. Menampilkan pusat Jakarta, pilih kota untuk mengubah.
             </p>
           </div>
         </div>
@@ -356,26 +356,32 @@ export function BengkelView({ onBack }: { onBack?: () => void }) {
         ))}
       </FadeUp>
 
-      {/* Radius + jumlah hasil — digabung satu baris */}
-      <FadeUp delay={0.11} className="flex items-center gap-2 px-4 pt-2">
-        {!query && (
-          <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
+      {/* Radius pas 5 kolom: presisi, tanpa scroll, tanpa terpotong */}
+      {!query && (
+        <FadeUp delay={0.11} className="px-4 pt-2">
+          <div className="grid grid-cols-5 gap-1.5">
             {RADII.map((r) => (
               <button
                 key={r}
                 type="button"
                 onClick={() => setRadiusKm(r)}
                 className={cn(
-                  'shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold transition-colors',
-                  radiusKm === r ? 'bg-lime text-on-lime' : 'bg-card text-muted-foreground shadow-sm'
+                  'min-h-8 rounded-full py-1 text-center text-[11px] font-bold transition-all',
+                  radiusKm === r
+                    ? 'bg-lime text-on-lime'
+                    : 'bg-card text-muted-foreground shadow-sm'
                 )}
               >
                 {r} km
               </button>
             ))}
           </div>
-        )}
-        <p className="flex shrink-0 items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+        </FadeUp>
+      )}
+
+      {/* Info jumlah hasil + status sumber data */}
+      <FadeUp delay={0.14} className="px-4 pt-2">
+        <p className="flex flex-wrap items-center gap-x-1.5 text-[11px] font-medium text-muted-foreground">
           {live ? (
             <span className="inline-flex items-center gap-1 text-ok">
               <MapPin size={11} />
@@ -384,12 +390,16 @@ export function BengkelView({ onBack }: { onBack?: () => void }) {
           ) : (
             <span className="inline-flex items-center gap-1 text-warn">
               <WifiOff size={11} />
-              Demo
+              Mode demo
             </span>
           )}
           <span aria-hidden="true">·</span>
-          <span className="whitespace-nowrap">
-            {loading ? 'memuat…' : `${shown.length} bengkel`}
+          <span>
+            {loading
+              ? 'memuat bengkel dari peta…'
+              : query
+                ? `${shown.length} hasil untuk “${query}”`
+                : `${shown.length} bengkel dalam radius ${radiusKm} km dari ${refLabel}`}
           </span>
         </p>
       </FadeUp>
@@ -419,7 +429,7 @@ export function BengkelView({ onBack }: { onBack?: () => void }) {
           )}
           {!loading && shown.length === 0 && (
             <p className="pt-3 text-center text-xs text-muted-foreground">
-              Tidak ada bengkel dalam radius — perluas radius atau pilih kota lain.
+              Tidak ada bengkel dalam radius. Perluas radius atau pilih kota lain.
             </p>
           )}
         </div>

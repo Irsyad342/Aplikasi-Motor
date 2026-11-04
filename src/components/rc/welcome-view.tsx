@@ -24,7 +24,7 @@ const FEATURES = [
   {
     icon: Wrench,
     title: 'Pantau komponen motor',
-    desc: 'Ketahui kapan oli, busi, atau rem perlu diganti — otomatis dari odometer.',
+    desc: 'Ketahui kapan oli, busi, atau rem perlu diganti, otomatis dari odometer.',
   },
   {
     icon: Route,
@@ -108,7 +108,7 @@ export function WelcomeView({
           </h1>
           <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
             Asisten perawatan motor kamu. Mulai dengan menambahkan kendaraan
-            pertama — data milikmu sendiri, bersih tanpa contoh.
+            pertama. Data milikmu sendiri, bersih tanpa contoh.
           </p>
 
           <div className="mt-5 space-y-3">
