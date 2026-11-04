@@ -38,10 +38,19 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const component = loaded.component
     const data: Record<string, unknown> = {}
 
-    // Pasang komponen yang belum terpasang
+    // Pasang komponen yang belum terpasang. Pengguna bisa menentukan km
+    // pemasangan (default: odometer saat ini) — sisa pakai dihitung dari
+    // selisih odometer berjalan terhadap km pemasangan ini.
     if (body.action === 'install') {
+      const installKm = Math.max(
+        0,
+        Math.min(
+          component.vehicle.odometer,
+          Math.round(Number(body.installKm ?? component.vehicle.odometer) || 0)
+        )
+      )
       data.installed = true
-      data.lastServiceOdo = component.vehicle.odometer
+      data.lastServiceOdo = installKm
       data.lastServiceDate = new Date()
       data.hasService = false
       await db.component.update({ where: { id }, data })

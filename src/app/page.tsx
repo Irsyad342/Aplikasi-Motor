@@ -20,7 +20,7 @@ import type { AppState, ComponentDTO, ExpenseDTO, TripDTO, VehicleDTO } from '@/
 import { BENGKEL_LIST } from '@/lib/bengkel'
 import { bearingDeg, haversineKm, type LatLng } from '@/lib/geo'
 import { useLocation } from '@/lib/use-location'
-import { statusLabel } from '@/lib/status'
+import { formatKm, statusLabel } from '@/lib/status'
 import { BottomNav, type View } from '@/components/rc/nav'
 import {
   Btn,
@@ -132,6 +132,7 @@ export default function Home() {
   const [editVehicle, setEditVehicle] = useState<VehicleDTO | null>(null)
   const [odoOpen, setOdoOpen] = useState(false)
   const [serviceOpen, setServiceOpen] = useState<{ open: boolean; componentId: string | null }>({ open: false, componentId: null })
+  const [installOpen, setInstallOpen] = useState<{ open: boolean; componentId: string | null }>({ open: false, componentId: null })
   const [tripOpen, setTripOpen] = useState(false)
   const [expenseOpen, setExpenseOpen] = useState(false)
   // Popup peringatan
@@ -443,11 +444,11 @@ export default function Home() {
   )
 
   const installComponent = useCallback(
-    async (c: ComponentDTO) => {
+    async (c: ComponentDTO, installKm?: number) => {
       try {
-        await api(`/api/components/${c.id}`, 'PATCH', { action: 'install' })
+        await api(`/api/components/${c.id}`, 'PATCH', { action: 'install', installKm })
         await loadState(vehicleId ?? undefined)
-        toast.success(`${c.name} ditambahkan ke kendaraan`)
+        toast.success(`${c.name} dipasang — sisa pakai mulai dipantau`)
       } catch (e) {
         toast.error(e instanceof Error ? e.message : 'Gagal menambah komponen')
       }
@@ -931,7 +932,7 @@ export default function Home() {
                   records={state.records}
                   onOpenDetail={setOpenDetailId}
                   onOpenService={(c) => setServiceOpen({ open: true, componentId: c.id })}
-                  onInstall={installComponent}
+                  onInstall={(c) => setInstallOpen({ open: true, componentId: c.id })}
                   onOpenBengkel={() => setView('bengkel')}
                   selectMode={selectMode}
                   selectedIds={selectedIds}
@@ -1124,6 +1125,17 @@ export default function Home() {
           odometer={vehicle.odometer}
           onClose={() => setServiceOpen({ open: false, componentId: null })}
           onSubmit={(id, data) => recordService(id, data)}
+        />
+
+        <InstallSheet
+          open={installOpen.open}
+          component={state.components.find((c) => c.id === installOpen.componentId) ?? null}
+          odometer={vehicle.odometer}
+          onClose={() => setInstallOpen({ open: false, componentId: null })}
+          onSubmit={async (id, km) => {
+            const c = state.components.find((x) => x.id === id)
+            if (c) await installComponent(c, km)
+          }}
         />
 
         <ManualTripSheet
@@ -1527,6 +1539,110 @@ function ServiceSheet({
         </Field>
         <Btn variant="lime" full onClick={submit} disabled={saving || components.length === 0}>
           {saving ? 'Menyimpan…' : 'Simpan Catatan Servis'}
+        </Btn>
+      </div>
+    </Sheet>
+  )
+}
+
+/** Sheet pemasangan komponen dari katalog — pengguna memasukkan km pemasangan
+    (default: odometer saat ini). Sisa pakai dihitung ulang otomatis oleh server
+    mengikuti odometer berjalan. */
+function InstallSheet({
+  open,
+  component,
+  odometer,
+  onClose,
+  onSubmit,
+}: {
+  open: boolean
+  component: ComponentDTO | null
+  odometer: number
+  onClose: () => void
+  onSubmit: (id: string, installKm: number) => Promise<void>
+}) {
+  const [km, setKm] = useState(String(odometer))
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (open) setKm(String(odometer))
+  }, [open, odometer])
+
+  if (!component) return null
+
+  const installKm = Math.round(Number(km) || 0)
+  const overOdo = installKm > odometer
+  const used = Math.max(0, odometer - installKm)
+  const remaining = Math.max(0, component.intervalKm - used)
+
+  const submit = async () => {
+    if (overOdo) return toast.error('KM pemasangan tidak bisa melebihi odometer saat ini')
+    setSaving(true)
+    try {
+      await onSubmit(component.id, installKm)
+      onClose()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Gagal memasang komponen')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Sheet open={open} onClose={onClose} title={`Pasang ${component.name}`}>
+      <div className="flex flex-col gap-4">
+        <p className="text-[13px] leading-snug text-muted-foreground">
+          Masukkan km saat komponen ini terpasang. Sisa pakai akan berkurang otomatis
+          mengikuti odometer kendaraan.
+        </p>
+        <Field label="KM Pemasangan" hint={`Odometer saat ini: ${formatKm(odometer)} km`}>
+          <div className="flex gap-2">
+            <input
+              className={inputCls}
+              inputMode="numeric"
+              value={km}
+              onChange={(e) => setKm(e.target.value.replace(/[^\d]/g, ''))}
+              placeholder="cth. 7000"
+              aria-label="KM pemasangan komponen"
+            />
+            <button
+              type="button"
+              onClick={() => setKm(String(odometer))}
+              className="press shrink-0 rounded-xl border border-border/70 px-3 text-[11px] font-bold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              Sekarang
+            </button>
+          </div>
+        </Field>
+
+        {/* Pratinjau sisa pakai berdasarkan km pemasangan */}
+        <div className="rounded-2xl bg-muted/60 p-4" aria-live="polite">
+          {overOdo ? (
+            <p className="text-[12px] font-bold text-danger">
+              KM pemasangan melebihi odometer saat ini ({formatKm(odometer)} km)
+            </p>
+          ) : (
+            <>
+              <div className="flex items-center justify-between text-[12px] font-semibold text-muted-foreground">
+                <span>Terpakai</span>
+                <span>{formatKm(used)} km</span>
+              </div>
+              <div className="mt-1.5 flex items-center justify-between text-[12px] font-semibold text-muted-foreground">
+                <span>Interval {component.name}</span>
+                <span>
+                  {component.intervalKm > 0 ? `${formatKm(component.intervalKm)} km` : 'Per waktu'}
+                </span>
+              </div>
+              <div className="mt-2.5 flex items-center justify-between border-t border-border/60 pt-2.5">
+                <span className="text-[12px] font-bold text-foreground">Sisa pakai</span>
+                <span className="stat-num text-[18px] text-foreground">{formatKm(remaining)} km</span>
+              </div>
+            </>
+          )}
+        </div>
+
+        <Btn variant="lime" full onClick={submit} disabled={saving || overOdo}>
+          {saving ? 'Memasang…' : `Pasang ${component.name}`}
         </Btn>
       </div>
     </Sheet>

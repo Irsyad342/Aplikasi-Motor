@@ -111,7 +111,7 @@ export async function buildState(
 
   const now = new Date()
 
-  const [components, trips, records, expenses, catalogItems] = await Promise.all([
+  const [componentRows, trips, records, expenses, catalogItems] = await Promise.all([
     db.component.findMany({
       where: { vehicleId: vehicle.id },
       orderBy: [{ installed: 'desc' }, { name: 'asc' }],
@@ -134,6 +134,35 @@ export async function buildState(
     }),
     Promise.resolve(getCatalog(vehicle.type)),
   ])
+
+  // Backfill: kendaraan lama dibuat sebelum katalog bertambah — pastikan
+  // setiap item katalog punya baris komponen. Item yang kurang masuk sebagai
+  // belum terpasang (muncul di katalog Perawatan).
+  let components = componentRows
+  const missing = catalogItems.filter((i) => !components.some((c) => c.key === i.key))
+  if (missing.length > 0) {
+    await db.component.createMany({
+      data: missing.map((i) => ({
+        vehicleId: vehicle.id,
+        key: i.key,
+        name: i.name,
+        icon: i.icon,
+        intervalKm: i.intervalKm,
+        intervalDays: i.intervalDays,
+        recommendedKm: i.intervalKm,
+        recommendedDays: i.intervalDays,
+        lastServiceOdo: vehicle.odometer,
+        lastServiceDate: now,
+        hasService: false,
+        installed: false,
+      })),
+      skipDuplicates: true,
+    })
+    components = await db.component.findMany({
+      where: { vehicleId: vehicle.id },
+      orderBy: [{ installed: 'desc' }, { name: 'asc' }],
+    })
+  }
 
   const componentDTOs: ComponentDTO[] = components.map((c) => ({
     id: c.id,

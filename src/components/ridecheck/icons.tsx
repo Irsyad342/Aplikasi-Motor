@@ -18,6 +18,7 @@ import {
   Zap,
   Cog,
   Wrench,
+  Gauge,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -39,6 +40,7 @@ const ICONS: Record<string, LucideIcon> = {
   link: Link,
   cog: Cog,
   wrench: Wrench,
+  gauge: Gauge,
 }
 
 export function ComponentIcon({

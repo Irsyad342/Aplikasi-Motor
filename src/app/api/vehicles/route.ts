@@ -33,7 +33,9 @@ export async function POST(req: NextRequest) {
       data: { name, type, odometer, imageKey, plate, userId },
     })
 
-    // Pasang seluruh katalog komponen dengan baseline di odometer saat ini
+    // Semua komponen katalog tersedia sebagai BELUM terpasang — pengguna
+    // memasangnya sendiri satu per satu dari halaman Perawatan (dengan
+    // mengisi km pemasangan), sesuai kondisi kendaraannya.
     const catalog = getCatalog(type)
     for (const item of catalog) {
       await db.component.create({
@@ -49,7 +51,7 @@ export async function POST(req: NextRequest) {
           lastServiceOdo: odometer,
           lastServiceDate: new Date(),
           hasService: false,
-          installed: true,
+          installed: false,
         },
       })
     }
