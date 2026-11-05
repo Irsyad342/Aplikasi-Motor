@@ -3,7 +3,9 @@
 /**
  * RideView — tab "Perjalanan".
  * Hero rekam GPS (CTA atau live), statistik ringkas, grafik aktivitas
- * (7 hari & 6 bulan), dan riwayat perjalanan. Semua angka dihitung dari props.
+ * (7 hari & 6 bulan), dan riwayat perjalanan berupa kartu rute
+ * (gambaran jalur GPS + jam mulai→tujuan). Semua angka dihitung dari props.
+ * Aksi akhiri / edit / hapus lewat sheet responsif, bukan dialog bawaan browser.
  */
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
@@ -13,24 +15,31 @@ import {
   Bike,
   CalendarDays,
   CircleDollarSign,
+  Gauge,
   MapPinOff,
   Navigation,
   Play,
   Route,
+  Smartphone,
   Square,
   Trash2,
+  TriangleAlert,
 } from 'lucide-react'
 import type { TripDTO, VehicleDTO } from '@/lib/state'
-import { formatDate, formatDuration, formatKm1 } from '@/lib/status'
+import { avgSpeedKmh, formatDate, formatDuration, formatKm1, formatTime } from '@/lib/status'
 import { cn } from '@/lib/utils'
 import { LiveTripMap } from '@/components/ridecheck/maps'
+import { TripCard, TripDetailSheet } from '@/components/rc/trip-ui'
+import { EditTripSheet } from '@/components/rc/history-edit-sheets'
 import {
   Btn,
   Card,
+  ConfirmSheet,
   EmptyState,
   IconBtn,
   Pill,
   SectionTitle,
+  Sheet,
   StatCard,
   LimeBarChart,
   LimeLineChart,
@@ -46,7 +55,14 @@ export interface RideViewProps {
   onToggleAutoTrack: () => void
   onStartTracking: () => void
   onFinishTracking: () => void
+  /** Hentikan rekam tanpa menyimpan (dari sheet akhiri perjalanan) */
+  onDiscardTracking: () => void
   onDeleteTrip: (id: string) => void
+  onEditTrip: (id: string, data: { distance: number; date: string }) => Promise<void>
+  /** Perjalanan tersimpan yang belum selesai (pulihan layar mati) */
+  resume: { startedAt: number; distance: number; path: [number, number][] } | null
+  onResumeSaved: () => void
+  onDiscardSaved: () => void
   path: [number, number][]
   currentPos: [number, number] | null
   heading: number
@@ -85,7 +101,12 @@ export function RideView(props: RideViewProps) {
     onToggleAutoTrack,
     onStartTracking,
     onFinishTracking,
+    onDiscardTracking,
     onDeleteTrip,
+    onEditTrip,
+    resume,
+    onResumeSaved,
+    onDiscardSaved,
     path,
     currentPos,
     heading,
@@ -101,7 +122,6 @@ export function RideView(props: RideViewProps) {
   // ---------- Hidrasi & timer ----------
   // Grafik & jam berjalan hanya dirender setelah mount (hindari mismatch SSR)
   const [mounted, setMounted] = useState(false)
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- flag hidrasi sesuai pola proyek
   useEffect(() => setMounted(true), [])
 
   const [now, setNow] = useState(0)
@@ -113,9 +133,18 @@ export function RideView(props: RideViewProps) {
     return () => window.clearInterval(id)
   }, [live, startedAt])
 
-  const elapsed = tracking
-    ? formatDuration(Math.max(0, (now - tracking.startedAt) / 1000))
-    : '00:00'
+  const elapsedSec = tracking ? Math.max(0, ((now || Date.now()) - tracking.startedAt) / 1000) : 0
+  const elapsed = tracking ? formatDuration(elapsedSec) : '00:00'
+  const liveAvg = tracking ? avgSpeedKmh(tracking.distance, elapsedSec) : 0
+
+  // Indikator layar tetap menyala (wake lock didukung di Chrome/Android)
+  const wakeOk = mounted && typeof navigator !== 'undefined' && 'wakeLock' in navigator
+
+  // ---------- Sheet lokal ----------
+  const [finishOpen, setFinishOpen] = useState(false)
+  const [detailTrip, setDetailTrip] = useState<TripDTO | null>(null)
+  const [editTrip, setEditTrip] = useState<TripDTO | null>(null)
+  const [confirmDel, setConfirmDel] = useState<TripDTO | null>(null)
 
   // ---------- Statistik ----------
   const stats = useMemo(() => {
@@ -174,6 +203,36 @@ export function RideView(props: RideViewProps) {
 
   return (
     <div className="space-y-6">
+      {/* ---------- 0. Perjalanan pulihan (aplikasi ditutup saat layar mati) ---------- */}
+      {resume && tracking === null && (
+        <Section>
+          <Card className="border-lime/50 bg-lime/10">
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-lime text-on-lime">
+                <Route size={19} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-extrabold text-foreground">
+                  Ada perjalanan belum tersimpan
+                </p>
+                <p className="mt-0.5 text-[12px] font-semibold leading-snug text-muted-foreground">
+                  {formatKm1(resume.distance)} km · {formatDuration((Date.now() - resume.startedAt) / 1000)} ·{' '}
+                  dimulai {formatTime(resume.startedAt)}
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 flex gap-2">
+              <Btn variant="lime" full onClick={onResumeSaved}>
+                <Play size={15} /> Lanjutkan
+              </Btn>
+              <Btn variant="danger" full onClick={onDiscardSaved}>
+                <Trash2 size={15} /> Buang
+              </Btn>
+            </div>
+          </Card>
+        </Section>
+      )}
+
       {/* ---------- 1. Hero rekam perjalanan ---------- */}
       <Section>
         {tracking === null ? (
@@ -187,7 +246,7 @@ export function RideView(props: RideViewProps) {
             </div>
             <h2 className="mt-2 text-xl font-extrabold tracking-tight">Rekam Perjalanan</h2>
             <p className="mt-1 text-[13px] leading-snug text-hero-foreground/60">
-              Rekam rute & jarak otomatis lewat GPS, atau catat manual.
+              Rekam rute &amp; jarak otomatis lewat GPS, atau catat manual.
             </p>
 
             <div className="mt-5 space-y-2.5">
@@ -256,8 +315,43 @@ export function RideView(props: RideViewProps) {
               </p>
             </div>
 
-            <Btn variant="danger" full className="mt-4" onClick={onFinishTracking}>
-              <Square size={15} /> Selesai & Simpan
+            {/* Statistik live: rata-rata kecepatan & titik GPS */}
+            {locMode === 'gps' && (
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <div className="rounded-2xl bg-white/10 px-3.5 py-2.5">
+                  <p className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-hero-foreground/55">
+                    <Gauge size={11} /> Rata-rata
+                  </p>
+                  <p className="mt-1 leading-none">
+                    <span className="stat-num text-[17px] text-hero-foreground">
+                      {liveAvg > 0 ? formatKm1(liveAvg) : '0'}
+                    </span>
+                    <span className="ml-1 text-[11px] font-bold text-hero-foreground/60">km/j</span>
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-white/10 px-3.5 py-2.5">
+                  <p className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-hero-foreground/55">
+                    <Navigation size={11} /> Titik GPS
+                  </p>
+                  <p className="mt-1 leading-none">
+                    <span className="stat-num text-[17px] text-hero-foreground">
+                      {tracking.geoFixes}
+                    </span>
+                    <span className="ml-1 text-[11px] font-bold text-hero-foreground/60">fix</span>
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {wakeOk && (
+              <p className="mt-3 flex items-center gap-1.5 text-[11px] font-semibold text-hero-foreground/60">
+                <Smartphone size={12} className="text-lime" />
+                Layar dijaga tetap menyala selama merekam, km terus terhitung walau ponsel di saku
+              </p>
+            )}
+
+            <Btn variant="danger" full className="mt-4" onClick={() => setFinishOpen(true)}>
+              <Square size={15} /> Selesai &amp; Simpan
             </Btn>
 
             {locMode === 'waiting' && (
@@ -340,7 +434,7 @@ export function RideView(props: RideViewProps) {
         )}
       </Section>
 
-      {/* ---------- 4. Riwayat perjalanan ---------- */}
+      {/* ---------- 4. Riwayat perjalanan (kartu rute) ---------- */}
       <Section delay={0.15}>
         <SectionTitle title="Riwayat Perjalanan" action="Analitik" onAction={onOpenHistory} />
         {trips.length === 0 ? (
@@ -353,36 +447,7 @@ export function RideView(props: RideViewProps) {
           <>
             <div className="space-y-2.5">
               {trips.slice(0, 12).map((t) => (
-                <Card key={t.id} className="flex items-center gap-3 p-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                    <Route size={17} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-extrabold text-foreground">
-                      {formatDate(t.startedAt)}
-                    </p>
-                    <p className="mt-0.5 truncate text-[12px] font-semibold text-muted-foreground">
-                      {t.source === 'auto' ? 'GPS Otomatis' : t.duration > 0 ? 'GPS' : 'Manual'} ·{' '}
-                      {formatDuration(t.duration)}
-                    </p>
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <span className="stat-num text-base text-foreground">
-                      {formatKm1(t.distance)}
-                    </span>
-                    <span className="ml-1 text-[11px] font-bold text-muted-foreground">km</span>
-                  </div>
-                  <IconBtn
-                    label="Hapus perjalanan"
-                    tone="ghost"
-                    className="h-9 w-9"
-                    onClick={() => {
-                      if (window.confirm('Hapus perjalanan ini?')) onDeleteTrip(t.id)
-                    }}
-                  >
-                    <Trash2 size={16} />
-                  </IconBtn>
-                </Card>
+                <TripCard key={t.id} trip={t} onClick={() => setDetailTrip(t)} />
               ))}
               {trips.length > 12 && (
                 <p className="px-1 text-[11px] font-semibold text-muted-foreground">
@@ -390,12 +455,140 @@ export function RideView(props: RideViewProps) {
                 </p>
               )}
             </div>
+            <p className="mt-2 px-1 text-[11px] font-semibold text-muted-foreground">
+              Ketuk kartu untuk melihat rute, mengedit, atau menghapus perjalanan
+            </p>
             <Btn variant="outline" full className="mt-3" onClick={onAddExpense}>
               <CircleDollarSign size={17} /> Catat Pengeluaran
             </Btn>
           </>
         )}
       </Section>
+
+      {/* ---------- Sheet: akhiri perjalanan ---------- */}
+      {tracking !== null && (
+        <SheetFinish
+          open={finishOpen}
+          onClose={() => setFinishOpen(false)}
+          distance={tracking.distance}
+          elapsedSec={elapsedSec}
+          geoFixes={tracking.geoFixes}
+          onSave={() => {
+            setFinishOpen(false)
+            onFinishTracking()
+          }}
+          onDiscard={() => {
+            setFinishOpen(false)
+            onDiscardTracking()
+          }}
+        />
+      )}
+
+      {/* ---------- Sheet: detail / edit / hapus ---------- */}
+      <TripDetailSheet
+        open={detailTrip !== null}
+        trip={detailTrip}
+        onClose={() => setDetailTrip(null)}
+        onEdit={(t) => setEditTrip(t)}
+        onDelete={(t) => setConfirmDel(t)}
+      />
+      <EditTripSheet
+        open={editTrip !== null}
+        trip={editTrip}
+        onClose={() => setEditTrip(null)}
+        onSubmit={onEditTrip}
+      />
+      <ConfirmSheet
+        open={confirmDel !== null}
+        onClose={() => setConfirmDel(null)}
+        onConfirm={() => {
+          if (confirmDel) onDeleteTrip(confirmDel.id)
+          setConfirmDel(null)
+        }}
+        title="Hapus Perjalanan?"
+        desc={
+          confirmDel
+            ? `Perjalanan ${formatKm1(confirmDel.distance)} km tanggal ${formatDate(confirmDel.startedAt)} akan dihapus. Odometer kendaraan dikembalikan otomatis.`
+            : ''
+        }
+        confirmLabel="Hapus"
+        danger
+      />
     </div>
+  )
+}
+
+/** Sheet konfirmasi akhiri perjalanan — ringkasan + pilihan simpan / buang */
+function SheetFinish({
+  open,
+  onClose,
+  distance,
+  elapsedSec,
+  geoFixes,
+  onSave,
+  onDiscard,
+}: {
+  open: boolean
+  onClose: () => void
+  distance: number
+  elapsedSec: number
+  geoFixes: number
+  onSave: () => void
+  onDiscard: () => void
+}) {
+  const avg = avgSpeedKmh(distance, elapsedSec)
+  const empty = geoFixes === 0 || distance < 0.01
+  return (
+    <Sheet open={open} onClose={onClose} title="Akhiri Perjalanan?" zIndex={60}>
+      <div className="flex flex-col gap-4">
+        <div className="grid grid-cols-3 gap-2">
+          <div className="rounded-2xl bg-muted/70 px-3 py-2.5 text-center">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+              Jarak
+            </p>
+            <p className="mt-1 leading-none">
+              <span className="stat-num text-[16px] text-foreground">{formatKm1(distance)}</span>
+              <span className="ml-0.5 text-[10px] font-bold text-muted-foreground">km</span>
+            </p>
+          </div>
+          <div className="rounded-2xl bg-muted/70 px-3 py-2.5 text-center">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+              Durasi
+            </p>
+            <p className="stat-num mt-1 text-[16px] leading-none text-foreground">
+              {formatDuration(elapsedSec)}
+            </p>
+          </div>
+          <div className="rounded-2xl bg-muted/70 px-3 py-2.5 text-center">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+              Rata-rata
+            </p>
+            <p className="mt-1 leading-none">
+              <span className="stat-num text-[16px] text-foreground">
+                {avg >= 1 && avg < 150 ? formatKm1(avg) : '0'}
+              </span>
+              <span className="ml-0.5 text-[10px] font-bold text-muted-foreground">km/j</span>
+            </p>
+          </div>
+        </div>
+
+        {empty && (
+          <p className="flex items-start gap-2 rounded-2xl bg-warn/10 px-4 py-3 text-[12px] font-semibold leading-relaxed text-warn">
+            <TriangleAlert size={15} className="mt-0.5 shrink-0" />
+            GPS belum merekam jarak. Menyimpan akan membatalkan perjalanan ini — pastikan GPS
+            aktif sebelum berangkat.
+          </p>
+        )}
+
+        <div className="flex flex-col gap-2">
+          <Btn variant="lime" full onClick={onSave} disabled={empty}>
+            <Square size={15} /> Selesai &amp; Simpan
+          </Btn>
+          <Btn variant="danger" full onClick={onDiscard}>
+            <Trash2 size={15} /> Buang Perjalanan
+          </Btn>
+        </div>
+      </div>
+    </Sheet>
   )
 }

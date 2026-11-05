@@ -21,6 +21,13 @@ import type { AppState, ComponentDTO, ExpenseDTO, TripDTO, VehicleDTO, CvtLogDTO
 import { BENGKEL_LIST } from '@/lib/bengkel'
 import { bearingDeg, haversineKm, type LatLng } from '@/lib/geo'
 import { useLocation } from '@/lib/use-location'
+import { requestScreenLock, releaseScreenLock } from '@/lib/wake-lock'
+import {
+  clearActiveTrip,
+  readActiveTrip,
+  saveActiveTrip,
+  type SavedTrip,
+} from '@/lib/active-trip'
 import { formatKm, statusLabel } from '@/lib/status'
 import { cn } from '@/lib/utils'
 import { BottomNav, type View } from '@/components/rc/nav'
@@ -164,11 +171,38 @@ export default function Home() {
   // Tracking — 100% GPS asli, tanpa mode simulasi. GPS wajib aktif untuk merekam.
   const [tracking, setTracking] = useState<TrackingState | null>(null)
   const watchRef = useRef<number | null>(null)
+  // Jangkar (titik acuan) jarak: langkah dihitung dari jangkar, bukan fix terakhir,
+  // sehingga jitter GPS saat diam tidak menumpuk km palsu.
   const lastPosRef = useRef<LatLng | null>(null)
+  const lastTsRef = useRef(0)
   const pathRef = useRef<[number, number][]>([])
   const headingRef = useRef(0)
   // true bila watch sudah diturunkan ke akurasi jaringan (fallback GPS presisi)
   const watchLowAccRef = useRef(false)
+  // Referensi state untuk handler di luar render (pagehide, visibilitychange)
+  const trackingRef = useRef<TrackingState | null>(null)
+  const lastPersistRef = useRef(0)
+  // Referensi watch GPS — dipanggil ulang dengan akurasi rendah saat sinyal sulit
+  const beginWatchRef = useRef<(highAccuracy: boolean) => void>(() => {})
+  // Wake lock — layar tetap menyala selama merekam agar GPS tidak berhenti
+  const wakeLockRef = useRef<WakeLockSentinel | null>(null)
+  // Perjalanan tersimpan yang belum selesai (pulih dari layar mati / aplikasi tertutup)
+  const [savedTrip, setSavedTrip] = useState<SavedTrip | null>(null)
+
+  // Cermin state tracking untuk akses dari callback
+  useEffect(() => {
+    trackingRef.current = tracking
+  }, [tracking])
+
+  // ---------- Persistensi progres perjalanan (tahan layar mati / aplikasi ditutup) ----------
+  const persistTrip = useCallback((force = false) => {
+    const t = trackingRef.current
+    if (!t) return
+    const nowTs = Date.now()
+    if (!force && nowTs - lastPersistRef.current < 4000) return
+    lastPersistRef.current = nowTs
+    saveActiveTrip({ startedAt: t.startedAt, distance: t.distance, path: pathRef.current })
+  }, [])
   const [livePath, setLivePath] = useState<[number, number][]>([])
   const [currentPos, setCurrentPos] = useState<[number, number] | null>(null)
   const [heading, setHeading] = useState(0)
@@ -219,6 +253,8 @@ export default function Home() {
     } catch {
       /* abaikan */
     }
+    clearActiveTrip()
+    setSavedTrip(null)
     setUser(null)
     setState(null)
     setLoadError(null)
@@ -308,7 +344,105 @@ export default function Home() {
     setCurrentPos(null)
     setHeading(0)
     setLocMode('waiting')
+    // Perjalanan berakhir (tersimpan / dibuang) — hapus pulihan dari layar mati
+    clearActiveTrip()
+    lastPersistRef.current = 0
   }, [])
+
+  /**
+   * Jalankan watch GPS dengan filter jarak yang akurat:
+   * - fix lebih kasar dari 100 m hanya untuk peta, tidak dihitung
+   * - lompatan GPS (kecepatan > 150 km/j) dibuang
+   * - langkah dihitung dari jangkar terakhir → jitter saat motor diam
+   *   tidak menumpuk km palsu, km asli tetap terekam
+   */
+  const beginWatch = useCallback(
+    (highAccuracy: boolean) => {
+      stopTrackingSensors()
+      if (typeof navigator === 'undefined' || !navigator.geolocation) return
+      watchRef.current = navigator.geolocation.watchPosition(
+        (pos) => {
+          const cur = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+          if (!Number.isFinite(cur.lat) || !Number.isFinite(cur.lng)) return
+          const acc =
+            typeof pos.coords.accuracy === 'number' && pos.coords.accuracy > 0
+              ? pos.coords.accuracy
+              : 50
+          const ts =
+            typeof pos.timestamp === 'number' && pos.timestamp > 0 ? pos.timestamp : Date.now()
+          setCurrentPos([cur.lat, cur.lng])
+
+          // Belum ada jangkar → fix pertama menjadi titik awal rute
+          if (lastPosRef.current === null) {
+            setLocMode('gps')
+            setGpsWaitSec(0)
+            lastPosRef.current = cur
+            lastTsRef.current = ts
+            pathRef.current = [[cur.lat, cur.lng]]
+            setLivePath(pathRef.current)
+            setTracking((prev) => (prev ? { ...prev, geoFixes: prev.geoFixes + 1 } : prev))
+            return
+          }
+
+          const anchor = lastPosRef.current
+          const dt = Math.max(0, (ts - lastTsRef.current) / 1000)
+          const d = haversineKm(anchor, cur)
+
+          // Fix terlalu kasar (indoor / sinyal lemah) → posisi peta saja
+          if (acc > 100) return
+          // Lompatan GPS mustahil (> 150 km/j) → teleport, abaikan
+          if (dt > 0 && (d / dt) * 3600 > 150) return
+
+          // Langkah minimum adaptif: makin kasar akurasi, makin besar gerakan
+          // yang dianggap nyata (mencegah km menanjak saat motor berhenti)
+          const minStep = Math.max(0.005, (acc * 0.75) / 1000)
+          if (d >= minStep) {
+            lastPosRef.current = cur
+            lastTsRef.current = ts
+            headingRef.current = bearingDeg(anchor, cur)
+            setHeading(headingRef.current)
+            if (pathRef.current.length < 2500) {
+              pathRef.current = [...pathRef.current, [cur.lat, cur.lng] as [number, number]]
+              setLivePath(pathRef.current)
+            }
+            setTracking((prev) =>
+              prev ? { ...prev, distance: prev.distance + d, geoFixes: prev.geoFixes + 1 } : prev
+            )
+            // Simpan progres agar tidak hilang bila halaman dimatikan
+            persistTrip()
+          }
+        },
+        (err) => {
+          // Izin dicabut di tengah rekam → hentikan dengan pesan jelas.
+          if (err.code === err.PERMISSION_DENIED) {
+            stopTrackingSensors()
+            abortTrackingUi()
+            toast.error('Akses lokasi ditolak. Izinkan lokasi untuk MotoMate di pengaturan browser', {
+              duration: 6000,
+            })
+            return
+          }
+          // GPS presisi tinggi sulit (indoor / sinyal lemah) → sekali saja
+          // coba ulang lewat lokasi jaringan (menara seluler / Wi-Fi).
+          if (!watchLowAccRef.current) {
+            watchLowAccRef.current = true
+            toast('GPS presisi sulit didapat, mencari lewat jaringan…')
+            beginWatchRef.current(false)
+          }
+        },
+        {
+          enableHighAccuracy: highAccuracy,
+          maximumAge: highAccuracy ? 0 : 5000,
+          timeout: highAccuracy ? 8000 : 20000,
+        }
+      )
+    },
+    [stopTrackingSensors, abortTrackingUi, persistTrip]
+  )
+
+  useEffect(() => {
+    beginWatchRef.current = beginWatch
+  }, [beginWatch])
 
   const startTracking = useCallback((force = false) => {
     // GPS wajib aktif — tanpa GPS fitur rekam tidak bisa dipakai
@@ -335,8 +469,8 @@ export default function Home() {
     if (locStatusRaw === 'denied' || locStatusRaw === 'unavailable') {
       locRefresh()
     }
-    stopTrackingSensors()
     lastPosRef.current = null
+    lastTsRef.current = 0
     pathRef.current = []
     headingRef.current = 0
     watchLowAccRef.current = false
@@ -351,71 +485,10 @@ export default function Home() {
       setCurrentPos(null)
     }
     setTracking({ startedAt: Date.now(), distance: 0, geoFixes: 0 })
-
-    /** Mulai watch GPS — bisa dipanggil ulang dengan akurasi rendah saat sinyal sulit. */
-    const watch = (highAccuracy: boolean) => {
-      stopTrackingSensors()
-      watchRef.current = navigator.geolocation!.watchPosition(
-        (pos) => {
-          const cur = { lat: pos.coords.latitude, lng: pos.coords.longitude }
-          if (!Number.isFinite(cur.lat) || !Number.isFinite(cur.lng)) return
-          if (lastPosRef.current === null) {
-            setLocMode('gps')
-            setGpsWaitSec(0)
-            pathRef.current = [[cur.lat, cur.lng]]
-            setLivePath(pathRef.current)
-            setCurrentPos([cur.lat, cur.lng])
-            lastPosRef.current = cur
-            setTracking((prev) => (prev ? { ...prev, distance: 0, geoFixes: 1 } : prev))
-            return
-          }
-          const last = lastPosRef.current
-          lastPosRef.current = cur
-          setCurrentPos([cur.lat, cur.lng])
-          const acc = typeof pos.coords.accuracy === 'number' ? pos.coords.accuracy : 0
-          const d = haversineKm(last, cur)
-          if (acc > 100 || d >= 1) return
-          if (d > 0.003) {
-            headingRef.current = bearingDeg(last, cur)
-            setHeading(headingRef.current)
-            if (pathRef.current.length < 2500) {
-              pathRef.current = [...pathRef.current, [cur.lat, cur.lng] as [number, number]]
-              setLivePath(pathRef.current)
-            }
-            setTracking((prev) =>
-              prev ? { ...prev, distance: prev.distance + d, geoFixes: prev.geoFixes + 1 } : prev
-            )
-          }
-        },
-        (err) => {
-          // Izin dicabut di tengah rekam → hentikan dengan pesan jelas.
-          if (err.code === err.PERMISSION_DENIED) {
-            stopTrackingSensors()
-            abortTrackingUi()
-            toast.error('Akses lokasi ditolak. Izinkan lokasi untuk MotoMate di pengaturan browser', {
-              duration: 6000,
-            })
-            return
-          }
-          // GPS presisi tinggi sulit (indoor / sinyal lemah) → sekali saja
-          // coba ulang lewat lokasi jaringan (menara seluler / Wi-Fi).
-          if (!watchLowAccRef.current) {
-            watchLowAccRef.current = true
-            toast('GPS presisi sulit didapat, mencari lewat jaringan…')
-            watch(false)
-          }
-        },
-        {
-          enableHighAccuracy: highAccuracy,
-          maximumAge: highAccuracy ? 2000 : 5000,
-          timeout: highAccuracy ? 8000 : 20000,
-        }
-      )
-    }
-    watch(true)
+    beginWatch(true)
 
     toast.success('Mencari sinyal GPS, perekaman dimulai')
-  }, [locPos, locStatusRaw, locRefresh, stopTrackingSensors, abortTrackingUi])
+  }, [locPos, locStatusRaw, locRefresh, beginWatch])
 
   const finishTracking = useCallback(async () => {
     if (!tracking || !vehicle) return
@@ -447,6 +520,92 @@ export default function Home() {
     }
     abortTrackingUi()
   }, [tracking, vehicle, autoTrack, loadState, stopTrackingSensors, abortTrackingUi])
+
+  // ---------- Wake lock & penyelamatan progres ----------
+  // Layar tetap menyala selama merekam → GPS tetap mengalir walau ponsel
+  // masuk saku / pengguna tidak menyentuh layar (layar mati = GPS berhenti).
+  const acquireWakeLock = useCallback(async () => {
+    const lock = await requestScreenLock()
+    if (lock) wakeLockRef.current = lock
+  }, [])
+
+  const releaseWakeLock = useCallback(() => {
+    releaseScreenLock(wakeLockRef.current)
+    wakeLockRef.current = null
+  }, [])
+
+  const liveTracking = tracking !== null
+  useEffect(() => {
+    if (!liveTracking) return
+    void acquireWakeLock()
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        // Lock otomatis dilepas saat tab disembunyikan → minta lagi
+        void acquireWakeLock()
+      } else {
+        // Halaman akan dibekukan → pastikan progres tersimpan
+        persistTrip(true)
+      }
+    }
+    const onHide = () => persistTrip(true)
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('pagehide', onHide)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('pagehide', onHide)
+      releaseWakeLock()
+    }
+  }, [liveTracking, acquireWakeLock, releaseWakeLock, persistTrip])
+
+  // Pulihkan perjalanan yang belum selesai (mis. aplikasi dimatikan saat layar mati)
+  useEffect(() => {
+    if (!user) return
+    const t = readActiveTrip()
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- pulihan dari localStorage (sistem eksternal), sesuai pola hidrasi cache
+    if (t && t.distance > 0) setSavedTrip(t)
+  }, [user])
+
+  /** Lanjutkan perjalanan tersimpan: kembalikan jarak, rute, lalu rekam lagi */
+  const resumeSavedTrip = useCallback(() => {
+    if (!savedTrip) return
+    lastPosRef.current = null
+    lastTsRef.current = 0
+    headingRef.current = 0
+    watchLowAccRef.current = false
+    setGpsWaitSec(0)
+    setLocMode('waiting')
+    const pts = savedTrip.path
+    pathRef.current = [...pts]
+    const last = pts[pts.length - 1]
+    // Jangkar = titik terakhir rute agar langkah berikutnya lanjut dari sana
+    lastPosRef.current = last ? { lat: last[0], lng: last[1] } : null
+    lastTsRef.current = last ? savedTrip.savedAt : 0
+    setLivePath(pathRef.current)
+    setCurrentPos(last ? [last[0], last[1]] : null)
+    setTracking({
+      startedAt: savedTrip.startedAt,
+      distance: savedTrip.distance,
+      geoFixes: Math.max(1, pts.length),
+    })
+    setSavedTrip(null)
+    if (locStatusRaw === 'denied' || locStatusRaw === 'unavailable') locRefresh()
+    beginWatch(true)
+    toast.success('Perjalanan dilanjutkan, GPS dicari kembali')
+  }, [savedTrip, locStatusRaw, locRefresh, beginWatch])
+
+  /** Buang perjalanan tersimpan yang tidak dilanjutkan */
+  const discardSavedTrip = useCallback(() => {
+    clearActiveTrip()
+    setSavedTrip(null)
+    toast('Perjalanan yang belum tersimpan dibuang')
+  }, [])
+
+  /** Hentikan rekam tanpa menyimpan (dari sheet akhiri perjalanan) */
+  const discardTracking = useCallback(() => {
+    stopTrackingSensors()
+    abortTrackingUi()
+    toast('Perjalanan dibuang, tidak ada data tersimpan')
+  }, [stopTrackingSensors, abortTrackingUi])
 
   useEffect(() => () => stopTrackingSensors(), [stopTrackingSensors])
 
@@ -982,7 +1141,12 @@ export default function Home() {
                   onToggleAutoTrack={toggleAutoTrack}
                   onStartTracking={() => startTracking()}
                   onFinishTracking={finishTracking}
+                  onDiscardTracking={discardTracking}
                   onDeleteTrip={deleteTrip}
+                  onEditTrip={editTrip}
+                  resume={savedTrip}
+                  onResumeSaved={resumeSavedTrip}
+                  onDiscardSaved={discardSavedTrip}
                   path={livePath}
                   currentPos={currentPos}
                   heading={heading}

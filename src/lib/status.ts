@@ -113,3 +113,17 @@ export function formatDuration(totalSeconds: number): string {
   const pad = (v: number) => String(v).padStart(2, '0')
   return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`
 }
+
+/** Jam & menit, cth. 08.15 */
+export function formatTime(d: string | number | Date): string {
+  const date = typeof d === 'string' ? new Date(d) : typeof d === 'number' ? new Date(d) : d
+  const pad = (v: number) => String(v).padStart(2, '0')
+  return `${pad(date.getHours())}.${pad(date.getMinutes())}`
+}
+
+/** Kecepatan rata-rata km/j dari jarak (km) & durasi (detik); 0 bila tidak valid */
+export function avgSpeedKmh(distanceKm: number, durationSec: number): number {
+  if (durationSec <= 0 || distanceKm <= 0) return 0
+  const v = distanceKm / (durationSec / 3600)
+  return Math.round(v * 10) / 10
+}

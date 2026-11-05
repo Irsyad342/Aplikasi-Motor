@@ -73,7 +73,10 @@ export function EditTripSheet({
             className={inputCls}
             inputMode="decimal"
             value={distance}
-            onChange={(e) => setDistance(e.target.value.replace(/[^\d.]/g, ''))}
+            onChange={(e) =>
+              // Terima format Indonesia: koma jadi titik (12,5 → 12.5)
+              setDistance(e.target.value.replace(/[^\d.,]/g, '').replace(',', '.'))
+            }
             placeholder="cth. 12,5"
           />
         </Field>

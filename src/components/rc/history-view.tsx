@@ -25,6 +25,7 @@ import type { ComponentDTO, ExpenseDTO, RecordDTO, TripDTO, VehicleDTO } from '@
 import { formatDate, formatDuration, formatKm, formatKm1, statusLabel, statusOrder, type ComponentStatus } from '@/lib/status'
 import {
   Card,
+  ConfirmSheet,
   EmptyState,
   IconBtn,
   LimeBarChart,
@@ -37,6 +38,7 @@ import {
   statusTone,
   type ChartPoint,
 } from '@/components/rc/ui'
+import { TripCard, TripDetailSheet } from '@/components/rc/trip-ui'
 import { ComponentIcon } from '@/components/ridecheck/icons'
 import { cn } from '@/lib/utils'
 import { EditExpenseSheet, EditRecordSheet, EditTripSheet } from '@/components/rc/history-edit-sheets'
@@ -201,6 +203,9 @@ export function HistoryView({
   const [editTrip, setEditTrip] = useState<TripDTO | null>(null)
   const [editExpense, setEditExpense] = useState<ExpenseDTO | null>(null)
   const [editRecord, setEditRecord] = useState<RecordDTO | null>(null)
+  // Detail & konfirmasi hapus perjalanan (sheet responsif, bukan dialog browser)
+  const [detailTrip, setDetailTrip] = useState<TripDTO | null>(null)
+  const [confirmDelTrip, setConfirmDelTrip] = useState<TripDTO | null>(null)
 
   const sortedRecords = useMemo(
     () => [...records].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
@@ -585,50 +590,7 @@ export function HistoryView({
               ) : (
                 <div className="space-y-2.5">
                   {sortedTrips.map((t) => (
-                    <Card key={t.id} className="p-4">
-                      <div className="flex items-center gap-3">
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                          <Route size={18} />
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[14px] font-bold text-foreground">
-                            {formatDate(t.startedAt)}
-                          </p>
-                          <p className="mt-0.5 truncate text-[12px] text-muted-foreground">
-                            {t.source} · {formatDuration(t.duration)}
-                          </p>
-                        </div>
-                        <p className="stat-num shrink-0 text-[15px] text-foreground">
-                          {formatKm1(t.distance)}
-                          <span className="ml-1 text-[11px] font-bold text-muted-foreground">km</span>
-                        </p>
-                        <div className="flex shrink-0 items-center">
-                          <IconBtn
-                            label="Edit perjalanan"
-                            tone="ghost"
-                            className="h-8 w-8 hover:text-foreground"
-                            onClick={() => setEditTrip(t)}
-                          >
-                            <Pencil size={15} />
-                          </IconBtn>
-                          <IconBtn
-                            label="Hapus perjalanan"
-                            tone="ghost"
-                            className="h-8 w-8 hover:text-danger"
-                            onClick={() => {
-                              if (
-                                window.confirm(
-                                  `Hapus perjalanan ${formatKm1(t.distance)} km tanggal ${formatDate(t.startedAt)}? Odometer akan dikembalikan otomatis.`
-                                )
-                              )
-                                onDeleteTrip(t.id)
-                            }}
-                          >
-                            <Trash2 size={15} />
-                          </IconBtn>
-                        </div>
-                      </div>
-                    </Card>
+                    <TripCard key={t.id} trip={t} onClick={() => setDetailTrip(t)} />
                   ))}
                 </div>
               )}
@@ -740,12 +702,35 @@ export function HistoryView({
         </div>
       )}
 
-      {/* ---------- Sheet edit riwayat ---------- */}
+      {/* ---------- Sheet riwayat ---------- */}
+      <TripDetailSheet
+        open={detailTrip !== null}
+        trip={detailTrip}
+        onClose={() => setDetailTrip(null)}
+        onEdit={(t) => setEditTrip(t)}
+        onDelete={(t) => setConfirmDelTrip(t)}
+      />
       <EditTripSheet
         open={editTrip !== null}
         trip={editTrip}
         onClose={() => setEditTrip(null)}
         onSubmit={onEditTrip}
+      />
+      <ConfirmSheet
+        open={confirmDelTrip !== null}
+        onClose={() => setConfirmDelTrip(null)}
+        onConfirm={() => {
+          if (confirmDelTrip) onDeleteTrip(confirmDelTrip.id)
+          setConfirmDelTrip(null)
+        }}
+        title="Hapus Perjalanan?"
+        desc={
+          confirmDelTrip
+            ? `Perjalanan ${formatKm1(confirmDelTrip.distance)} km tanggal ${formatDate(confirmDelTrip.startedAt)} akan dihapus. Odometer kendaraan dikembalikan otomatis.`
+            : ''
+        }
+        confirmLabel="Hapus"
+        danger
       />
       <EditExpenseSheet
         open={editExpense !== null}
