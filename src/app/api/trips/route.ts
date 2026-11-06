@@ -18,6 +18,11 @@ export async function POST(req: NextRequest) {
     const distance = Math.max(0, Number(body.distance) || 0)
     const duration = Math.max(0, Math.round(Number(body.duration) || 0))
     const source = body.source === 'auto' ? 'auto' : 'manual'
+    const clientRef =
+      typeof body.clientRef === 'string' && body.clientRef.length >= 4 && body.clientRef.length <= 64
+        ? body.clientRef
+        : null
+    const movingSec = Math.max(0, Math.round(Number(body.movingSec) || 0))
 
     if (!vehicleId) {
       return NextResponse.json({ error: 'vehicleId wajib diisi' }, { status: 400 })
@@ -32,6 +37,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Kendaraan tidak ditemukan' }, { status: 404 })
     }
 
+    // Idempotensi: klien mengirim ulang trip yang sama (antrean offline, koneksi
+    // putus setelah kirim) TIDAK membuat trip kedua — kembalikan yang sudah ada.
+    if (clientRef) {
+      const existing = await db.trip.findUnique({ where: { clientRef } })
+      if (existing) {
+        if (existing.vehicleId !== vehicleId) {
+          return NextResponse.json({ error: 'Kendaraan tidak ditemukan' }, { status: 404 })
+        }
+        return NextResponse.json(existing, { status: 200 })
+      }
+    }
+
     const startOdo = vehicle.odometer
     const endOdo = Math.round(startOdo + distance)
 
@@ -41,9 +58,11 @@ export async function POST(req: NextRequest) {
           vehicleId,
           distance,
           duration,
+          movingSec: movingSec > 0 ? movingSec : null,
           startOdo,
           endOdo,
           source,
+          clientRef,
           path:
             typeof body.path === 'string' && body.path.length > 4
               ? body.path.slice(0, 500000)

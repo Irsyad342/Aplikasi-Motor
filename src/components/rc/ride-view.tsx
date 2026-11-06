@@ -15,6 +15,7 @@ import {
   Bike,
   CalendarDays,
   CircleDollarSign,
+  CloudUpload,
   Gauge,
   MapPinOff,
   Navigation,
@@ -26,7 +27,7 @@ import {
   TriangleAlert,
 } from 'lucide-react'
 import type { TripDTO, VehicleDTO } from '@/lib/state'
-import { avgSpeedKmh, formatDate, formatDuration, formatKm1, formatTime } from '@/lib/status'
+import { formatDate, formatDuration, formatKm1, formatTime, tripAvgSpeedKmh } from '@/lib/status'
 import { cn } from '@/lib/utils'
 import { LiveTripMap } from '@/components/ridecheck/maps'
 import { TripCard, TripDetailSheet } from '@/components/rc/trip-ui'
@@ -57,6 +58,12 @@ export interface RideViewProps {
   onFinishTracking: () => void
   /** Hentikan rekam tanpa menyimpan (dari sheet akhiri perjalanan) */
   onDiscardTracking: () => void
+  /** true saat proses Selesai sedang berjalan — tombol terkunci + label berubah */
+  finishing: boolean
+  /** Jumlah perjalanan tersimpan lokal yang menunggu sinkronisasi */
+  pendingSync: number
+  /** Layar sedang dijaga tetap menyala (wake lock aktif) */
+  wakeActive: boolean
   onDeleteTrip: (id: string) => void
   onEditTrip: (id: string, data: { distance: number; date: string }) => Promise<void>
   /** Perjalanan tersimpan yang belum selesai (pulihan layar mati) */
@@ -66,7 +73,7 @@ export interface RideViewProps {
   path: [number, number][]
   currentPos: [number, number] | null
   heading: number
-  locMode: 'waiting' | 'gps'
+  locMode: 'waiting' | 'gps' | 'coarse'
   locStatus: string
   /** Detik sejak mulai rekam tanpa fix GPS — untuk umpan balik tombol panduan */
   locWaitSec: number
@@ -102,6 +109,9 @@ export function RideView(props: RideViewProps) {
     onStartTracking,
     onFinishTracking,
     onDiscardTracking,
+    finishing,
+    pendingSync,
+    wakeActive,
     onDeleteTrip,
     onEditTrip,
     resume,
@@ -135,9 +145,13 @@ export function RideView(props: RideViewProps) {
 
   const elapsedSec = tracking ? Math.max(0, ((now || Date.now()) - tracking.startedAt) / 1000) : 0
   const elapsed = tracking ? formatDuration(elapsedSec) : '00:00'
-  const liveAvg = tracking ? avgSpeedKmh(tracking.distance, elapsedSec) : 0
+  // Rata-rata dihitung dari waktu bergerak efektif menurut GPS — jeda menunggu
+  // sinyal & berhenti di lampu merah tidak menurunkan angka rata-rata.
+  const liveAvg = tracking
+    ? tripAvgSpeedKmh({ distance: tracking.distance, duration: elapsedSec, movingSec: Math.round(tracking.movingMs / 1000) })
+    : 0
 
-  // Indikator layar tetap menyala (wake lock didukung di Chrome/Android)
+  // Indikator dukungan wake lock (Chrome/Android mendukung, Safari/iOS belum)
   const wakeOk = mounted && typeof navigator !== 'undefined' && 'wakeLock' in navigator
 
   // ---------- Sheet lokal ----------
@@ -233,6 +247,27 @@ export function RideView(props: RideViewProps) {
         </Section>
       )}
 
+      {/* ---------- 0b. Banner antrean sinkronisasi (perjalanan tersimpan lokal) ---------- */}
+      {pendingSync > 0 && (
+        <Section>
+          <Card className="border-warn/40 bg-warn/10">
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-warn/20 text-warn">
+                <CloudUpload size={19} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-extrabold text-foreground">
+                  {pendingSync} perjalanan menunggu sinkronisasi
+                </p>
+                <p className="mt-0.5 text-[12px] font-semibold leading-snug text-muted-foreground">
+                  Tersimpan aman di perangkat. Akan terkirim otomatis begitu internet tersedia.
+                </p>
+              </div>
+            </div>
+          </Card>
+        </Section>
+      )}
+
       {/* ---------- 1. Hero rekam perjalanan ---------- */}
       <Section>
         {tracking === null ? (
@@ -287,6 +322,11 @@ export function RideView(props: RideViewProps) {
             <div className="flex items-center justify-between gap-3">
               {locMode === 'gps' ? (
                 <Pill tone="lime">GPS Aktif</Pill>
+              ) : locMode === 'coarse' ? (
+                <Pill tone="amber">
+                  <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                  Presisi Rendah
+                </Pill>
               ) : (
                 <Pill tone="gray" className="animate-pulse">
                   <span className="h-1.5 w-1.5 rounded-full bg-current" />
@@ -316,7 +356,7 @@ export function RideView(props: RideViewProps) {
             </div>
 
             {/* Statistik live: rata-rata kecepatan & titik GPS */}
-            {locMode === 'gps' && (
+            {locMode !== 'waiting' && (
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <div className="rounded-2xl bg-white/10 px-3.5 py-2.5">
                   <p className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-hero-foreground/55">
@@ -343,14 +383,32 @@ export function RideView(props: RideViewProps) {
               </div>
             )}
 
-            {wakeOk && (
+            {wakeOk ? (
+              wakeActive ? (
+                <p className="mt-3 flex items-center gap-1.5 text-[11px] font-semibold text-hero-foreground/60">
+                  <Smartphone size={12} className="text-lime" />
+                  Layar dijaga tetap menyala selama merekam, km terus terhitung walau ponsel di saku
+                </p>
+              ) : (
+                <p className="mt-3 flex items-center gap-1.5 text-[11px] font-semibold text-hero-foreground/60">
+                  <Smartphone size={12} className="text-warn" />
+                  Penjaga layar belum aktif, biarkan layar menyala agar km tetap tercatat
+                </p>
+              )
+            ) : (
               <p className="mt-3 flex items-center gap-1.5 text-[11px] font-semibold text-hero-foreground/60">
-                <Smartphone size={12} className="text-lime" />
-                Layar dijaga tetap menyala selama merekam, km terus terhitung walau ponsel di saku
+                <Smartphone size={12} className="text-warn" />
+                Browser tidak mendukung penjaga layar, hindari layar mati saat merekam
               </p>
             )}
 
-            <Btn variant="danger" full className="mt-4" onClick={() => setFinishOpen(true)}>
+            <Btn
+              variant="danger"
+              full
+              className="mt-4"
+              onClick={() => setFinishOpen(true)}
+              disabled={finishing}
+            >
               <Square size={15} /> Selesai &amp; Simpan
             </Btn>
 
@@ -473,11 +531,15 @@ export function RideView(props: RideViewProps) {
           distance={tracking.distance}
           elapsedSec={elapsedSec}
           geoFixes={tracking.geoFixes}
+          movingMs={tracking.movingMs}
+          finishing={finishing}
           onSave={() => {
+            if (finishing) return
             setFinishOpen(false)
             onFinishTracking()
           }}
           onDiscard={() => {
+            if (finishing) return
             setFinishOpen(false)
             onDiscardTracking()
           }}
@@ -525,6 +587,8 @@ function SheetFinish({
   distance,
   elapsedSec,
   geoFixes,
+  movingMs,
+  finishing,
   onSave,
   onDiscard,
 }: {
@@ -533,10 +597,16 @@ function SheetFinish({
   distance: number
   elapsedSec: number
   geoFixes: number
+  movingMs: number
+  finishing: boolean
   onSave: () => void
   onDiscard: () => void
 }) {
-  const avg = avgSpeedKmh(distance, elapsedSec)
+  const avg = tripAvgSpeedKmh({
+    distance,
+    duration: elapsedSec,
+    movingSec: Math.round(movingMs / 1000),
+  })
   const empty = geoFixes === 0 || distance < 0.01
   return (
     <Sheet open={open} onClose={onClose} title="Akhiri Perjalanan?" zIndex={60}>
@@ -581,10 +651,10 @@ function SheetFinish({
         )}
 
         <div className="flex flex-col gap-2">
-          <Btn variant="lime" full onClick={onSave} disabled={empty}>
-            <Square size={15} /> Selesai &amp; Simpan
+          <Btn variant="lime" full onClick={onSave} disabled={empty || finishing}>
+            <Square size={15} /> {finishing ? 'Menyimpan…' : 'Selesai & Simpan'}
           </Btn>
-          <Btn variant="danger" full onClick={onDiscard}>
+          <Btn variant="danger" full onClick={onDiscard} disabled={finishing}>
             <Trash2 size={15} /> Buang Perjalanan
           </Btn>
         </div>

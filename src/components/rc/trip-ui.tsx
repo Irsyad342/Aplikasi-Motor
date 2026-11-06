@@ -11,7 +11,7 @@
 import { useMemo, type ReactNode } from 'react'
 import { ArrowRight, Route } from 'lucide-react'
 import type { TripDTO } from '@/lib/state'
-import { avgSpeedKmh, formatDate, formatDuration, formatKm1, formatTime } from '@/lib/status'
+import { formatDate, formatDuration, formatKm1, formatTime, tripAvgSpeedKmh } from '@/lib/status'
 import { Btn, Card, Sheet } from '@/components/rc/ui'
 import { RouteMap } from '@/components/ridecheck/maps'
 import { Pencil, Trash2 } from 'lucide-react'
@@ -154,7 +154,7 @@ export function TripCard({
   action?: ReactNode
 }) {
   const path = useMemo(() => parseTripPath(trip.path), [trip.path])
-  const avg = avgSpeedKmh(trip.distance, trip.duration)
+  const avg = tripAvgSpeedKmh(trip)
   return (
     <Card padded={false} className="p-0" onClick={onClick}>
       <div className="flex items-stretch gap-3 p-3.5">
@@ -216,7 +216,7 @@ export function TripDetailSheet({
 }) {
   const path = useMemo(() => parseTripPath(trip?.path ?? null), [trip])
   if (!trip) return null
-  const avg = avgSpeedKmh(trip.distance, trip.duration)
+  const avg = tripAvgSpeedKmh(trip)
   const hasRoute = path.length >= 2
   return (
     <Sheet open={open} onClose={onClose} title="Detail Perjalanan">

@@ -127,3 +127,17 @@ export function avgSpeedKmh(distanceKm: number, durationSec: number): number {
   const v = distanceKm / (durationSec / 3600)
   return Math.round(v * 10) / 10
 }
+
+/**
+ * Kecepatan rata-rata dari sebuah perjalanan. Memakai waktu bergerak
+ * efektif (movingSec) bila tersedia — waktu menunggu GPS & jeda mesin
+ * tidak menurunkan rata-rata — dan jatuh ke durasi total untuk trip lama.
+ */
+export function tripAvgSpeedKmh(t: {
+  distance: number
+  duration: number
+  movingSec?: number | null
+}): number {
+  const base = typeof t.movingSec === 'number' && t.movingSec > 0 ? t.movingSec : t.duration
+  return avgSpeedKmh(t.distance, base)
+}

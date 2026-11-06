@@ -20,6 +20,8 @@ export interface SavedTrip {
   distance: number
   path: [number, number][]
   savedAt: number
+  /** Milidetik bergerak efektif — dipertahankan agar rata-rata tetap akurat */
+  movingMs: number
 }
 
 function sanitizePath(raw: unknown): [number, number][] {
@@ -40,6 +42,7 @@ export function saveActiveTrip(t: {
   startedAt: number
   distance: number
   path: [number, number][]
+  movingMs?: number
 }): void {
   if (typeof window === 'undefined') return
   try {
@@ -47,6 +50,7 @@ export function saveActiveTrip(t: {
       startedAt: t.startedAt,
       distance: Math.round(t.distance * 1000) / 1000,
       path: sanitizePath(t.path),
+      movingMs: Math.max(0, Math.round(t.movingMs ?? 0)),
       savedAt: Date.now(),
     }
     localStorage.setItem(KEY, JSON.stringify(data))
@@ -74,6 +78,7 @@ export function readActiveTrip(): SavedTrip | null {
       startedAt: p.startedAt,
       distance: Math.max(0, p.distance),
       path: sanitizePath(p.path),
+      movingMs: Math.max(0, Math.round(p.movingMs ?? 0)),
       savedAt: p.savedAt,
     }
   } catch {

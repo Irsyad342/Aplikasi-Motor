@@ -19,6 +19,8 @@ export interface TrackingState {
   startedAt: number
   distance: number
   geoFixes: number
+  /** Milidetik bergerak efektif menurut GPS — dasar rata-rata kecepatan akurat */
+  movingMs: number
 }
 
 // ---------- Format ----------

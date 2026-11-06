@@ -43,6 +43,8 @@ export interface TripDTO {
   id: string
   distance: number
   duration: number
+  /** Detik bergerak efektif menurut GPS — null pada trip lama/manual */
+  movingSec: number | null
   startOdo: number
   endOdo: number
   source: string
@@ -237,6 +239,7 @@ export async function buildState(
       id: t.id,
       distance: t.distance,
       duration: t.duration,
+      movingSec: t.movingSec ?? null,
       startOdo: t.startOdo,
       endOdo: t.endOdo,
       source: t.source,
