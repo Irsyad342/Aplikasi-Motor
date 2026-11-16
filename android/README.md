@@ -97,6 +97,15 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 > - `android/app/build/outputs/apk/release/app-release.apk` (~6.5 MB, tersigning)
 > - `android/app/build/outputs/bundle/release/app-release.aab` (~6.1 MB)
 >
+> **Reproduksibilitas (16 Nov 2026, sandbox segar):** build diulang dari nol
+> (install SDK 35 + JDK Temurin 21, `bunx cap sync android`, lalu
+> `./gradlew assembleDebug assembleRelease bundleRelease --no-daemon`) dan
+> ketiganya kembali **BUILD SUCCESSFUL** — app-debug.apk 7,7 MB,
+> app-release.apk 6,7 MB, app-release.aab 6,4 MB. Hasil inspeksi artefak
+> di bawah (ikon Light Mode, `ic_launcher_background #FFFFFFFF`,
+> monochrome 432px, izin via `aapt2 dump badging`) diverifikasi ulang
+> langsung dari APK hasil build ulang.
+>
 > Ikon launcher di dalam APK telah diperiksa langsung (diekstrak dari APK):
 > selalu varian **Light Mode** (tile putih, motor hijau hutan, cincin neon),
 > adaptive-icon background `#FFFFFF`, plus `ic_launcher_monochrome` untuk
