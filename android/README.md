@@ -90,6 +90,20 @@ cd android && ./gradlew assembleRelease  # .apk ter-sign
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
+> **Status build (diverifikasi di lingkungan CI sandbox, JDK 21 + SDK 35):**
+> `assembleDebug`, `assembleRelease`, dan `bundleRelease` semuanya
+> **BUILD SUCCESSFUL**. Artefak hasil verifikasi:
+> - `android/app/build/outputs/apk/debug/app-debug.apk` (~7.5 MB)
+> - `android/app/build/outputs/apk/release/app-release.apk` (~6.5 MB, tersigning)
+> - `android/app/build/outputs/bundle/release/app-release.aab` (~6.1 MB)
+>
+> Ikon launcher di dalam APK telah diperiksa langsung (diekstrak dari APK):
+> selalu varian **Light Mode** (tile putih, motor hijau hutan, cincin neon),
+> adaptive-icon background `#FFFFFF`, plus `ic_launcher_monochrome` untuk
+> themed icon Android 13+. Permission pada APK terverifikasi via
+> `aapt2 dump badging`: FINE/COARSE_LOCATION, FOREGROUND_SERVICE(_LOCATION),
+> POST_NOTIFICATIONS — tanpa izin berlebih.
+
 ## 4. Konfigurasi penting
 
 | Berkas | Isi |
