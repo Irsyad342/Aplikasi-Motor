@@ -27,7 +27,9 @@ const config: CapacitorConfig = {
     SplashScreen: {
       launchShowDuration: 900,
       launchFadeOutDuration: 350,
-      backgroundColor: '#0A2018',
+      // Splash Android = aset Light Mode (splash.png putih) sesuai aturan
+      // instalasi — latar overlay mengikuti warna putih agar tanpa garis tepi.
+      backgroundColor: '#FFFFFF',
       androidSplashResourceName: 'splash',
       showSpinner: false,
       splashFullScreen: true,

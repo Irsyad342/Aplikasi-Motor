@@ -58,29 +58,29 @@ export function tileIconSvg({ bg, body, ring = NEON, radius = 26 }) {
 </svg>`
 }
 
-/** Maskable / foreground adaptive: simbol menyusut ke safe-zone 80%. */
-export function maskableIconSvg({ bg, body, ring = NEON }) {
-  const pad = 120 * 0.09
+/** Maskable / foreground adaptive: simbol menyusut ke safe-zone. */
+export function maskableIconSvg({ bg, body, ring = NEON, accent = NEON, padRatio = 0.09 }) {
+  const pad = 120 * padRatio
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
   ${bg && bg !== 'transparent' ? `<rect width="120" height="120" fill="${bg}"/>` : ''}
   <g transform="translate(${pad} ${pad}) scale(${(120 - pad * 2) / 120})">
     ${ringSvg(ring)}
     ${motorSvg(body)}
-    ${vAccentSvg()}
+    ${vAccentSvg(accent)}
   </g>
 </svg>`
 }
 
-/** Splash: latar gelap + simbol + wordmark */
+/** Splash Android: latar putih + simbol hijau hutan + wordmark (aset instalasi selalu Light Mode). */
 export function splashSvg() {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
-  <rect width="120" height="120" fill="${NIGHT}"/>
+  <rect width="120" height="120" fill="${WHITE}"/>
   <g transform="translate(22 12) scale(0.64)">
     ${ringSvg(NEON)}
-    ${motorSvg(WHITE)}
+    ${motorSvg(FOREST)}
     ${vAccentSvg()}
   </g>
-  <text x="60" y="104" text-anchor="middle" font-family="Manrope, Arial, sans-serif" font-weight="800" font-size="11.5" fill="#FFFFFF">MotoMate</text>
+  <text x="60" y="104" text-anchor="middle" font-family="Manrope, Arial, sans-serif" font-weight="800" font-size="11.5" fill="${FOREST}">MotoMate</text>
 </svg>`
 }
 
@@ -91,13 +91,14 @@ async function renderPng(svg, out, size) {
 
 async function main() {
   const lightTile = (radius = 26) => tileIconSvg({ bg: WHITE, body: FOREST, radius })
-  const darkTile = (radius = 26) => tileIconSvg({ bg: NIGHT, body: WHITE, radius })
+  // Varian dark TIDAK dipakai untuk aset instalasi (ikon/splash) sesuai
+  // ketentuan — hanya untuk tampilan di dalam aplikasi via LogoMark (CSS).
 
   // SVG sumber
   const brandDir = join(ROOT, 'public/brand')
   mkdirSync(brandDir, { recursive: true })
   writeFileSync(join(brandDir, 'icon-light.svg'), lightTile())
-  writeFileSync(join(brandDir, 'icon-dark.svg'), darkTile())
+  writeFileSync(join(brandDir, 'icon-dark.svg'), tileIconSvg({ bg: NIGHT, body: WHITE }))
   // Mark transparan (simbol saja, tanpa tile) — dipakai web bila perlu
   writeFileSync(
     join(brandDir, 'mark-light.svg'),
@@ -115,7 +116,9 @@ async function main() {
   }
   for (const s of [1024, 512, 192]) {
     await renderPng(
-      maskableIconSvg({ bg: NIGHT, body: WHITE }),
+      // ATURAN INSTALASI: ikon PWA maskable SELALU Light Mode
+      // (latar putih penuh, simbol hijau hutan, cincin neon) — jangan dark.
+      maskableIconSvg({ bg: WHITE, body: FOREST }),
       join(imgDir, `app-icon-maskable-${s}.png`),
       s
     )
@@ -138,14 +141,28 @@ async function main() {
     }
     for (const [dir, s] of Object.entries(mip)) {
       mkdirSync(join(res, dir), { recursive: true })
-      await renderPng(darkTile(s * 0.225), join(res, dir, 'ic_launcher.png'), s)
-      await renderPng(darkTile(s / 2), join(res, dir, 'ic_launcher_round.png'), s)
+      // ATURAN INSTALASI: launcher icon SELALU Light Mode — latar putih,
+      // simbol hijau hutan, cincin neon. Dark Mode TIDAK boleh dipakai
+      // sebagai ikon instalasi walau tema aplikasi gelap.
+      await renderPng(lightTile(s * 0.225), join(res, dir, 'ic_launcher.png'), s)
+      await renderPng(lightTile(s / 2), join(res, dir, 'ic_launcher_round.png'), s)
+      // Foreground adaptive: simbol di atas latar putih (ic_launcher_background
+      // = #FFFFFF). Simbol menyusut ke safe-zone mask (padRatio 0.19) agar
+      // TIDAK tertutup lingkaran mask Android — tanpa tile bersudut di dalam.
       await renderPng(
-        maskableIconSvg({ bg: 'transparent', body: WHITE }),
+        maskableIconSvg({ bg: 'transparent', body: FOREST, padRatio: 0.19 }),
         join(res, dir, 'ic_launcher_foreground.png'),
         s
       )
     }
+    // Monochrome (Android 13+ themed icon): bentuk satu warna + alpha,
+    // sistem yang mewarnai. Ukuran canvas 108dp → 432px @xxxhdpi.
+    mkdirSync(join(res, 'drawable-xxxhdpi'), { recursive: true })
+    await renderPng(
+      maskableIconSvg({ bg: 'transparent', body: WHITE, ring: WHITE, accent: WHITE, padRatio: 0.19 }),
+      join(res, 'drawable-xxxhdpi/ic_launcher_monochrome.png'),
+      432
+    )
     mkdirSync(join(res, 'drawable'), { recursive: true })
     await renderPng(splashSvg(), join(res, 'drawable/splash.png'), 1024)
   } else {

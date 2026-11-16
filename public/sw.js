@@ -1,5 +1,5 @@
 /* MotoMate Service Worker — PWA agar bisa dipasang seperti aplikasi di HP */
-const VERSION = 'motomate-v1'
+const VERSION = 'motomate-v2'
 const APP_SHELL = [
   '/',
   '/manifest.webmanifest',

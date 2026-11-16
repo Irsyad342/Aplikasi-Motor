@@ -128,7 +128,9 @@ export async function nativeResume(): Promise<{ resumed: boolean; reason?: strin
 }
 
 /** Selesai sesi native (finalisasi + sinkron di latar belakang). */
-export async function nativeFinish(): Promise<{ stopped: boolean; saved?: boolean } | null> {
+export async function nativeFinish(): Promise<
+  { stopped: boolean; alreadyStopped?: boolean; saved?: boolean } | null
+> {
   try {
     return (await getPlugin()?.finish()) ?? null
   } catch {

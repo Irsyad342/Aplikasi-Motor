@@ -35,6 +35,7 @@ import {
   nativeDiscard,
   nativeFinish,
   nativeGetStatus,
+  nativeRequestPermissions,
   nativeResume,
   nativeStart,
   onNativeTripFinished,
