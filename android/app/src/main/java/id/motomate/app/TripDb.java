@@ -242,8 +242,13 @@ public class TripDb extends SQLiteOpenHelper {
         try {
             while (c.moveToNext()) {
                 JSONArray pt = new JSONArray();
-                pt.put(c.getDouble(0));
-                pt.put(c.getDouble(1));
+                try {
+                    pt.put(c.getDouble(0));
+                    pt.put(c.getDouble(1));
+                } catch (org.json.JSONException e) {
+                    // Baris tidak valid — lewati titik ini
+                    continue;
+                }
                 arr.put(pt);
             }
         } finally {

@@ -165,6 +165,12 @@ async function main() {
     )
     mkdirSync(join(res, 'drawable'), { recursive: true })
     await renderPng(splashSvg(), join(res, 'drawable/splash.png'), 1024)
+    // Splash di semua bucket density port/land juga SELALU Light Mode —
+    // template Capacitor membuat beberapa salinan; jangan biarkan yang lama.
+    for (const dir of ['drawable-port-mdpi', 'drawable-port-hdpi', 'drawable-port-xhdpi', 'drawable-port-xxhdpi', 'drawable-port-xxxhdpi', 'drawable-land-mdpi', 'drawable-land-hdpi', 'drawable-land-xhdpi', 'drawable-land-xxhdpi', 'drawable-land-xxxhdpi']) {
+      mkdirSync(join(res, dir), { recursive: true })
+      await renderPng(splashSvg(), join(res, `${dir}/splash.png`), 1024)
+    }
   } else {
     console.log('Folder android belum ada — lewati aset launcher/splash.')
   }

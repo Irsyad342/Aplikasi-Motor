@@ -42,12 +42,9 @@ public class RideTrackingPlugin extends Plugin {
 
     private static final String LOCATION_ALIAS = "location";
     private static final String NOTIF_ALIAS = "notifications";
-    private static final int PERMISSIONS_REQUEST_CODE = 4242;
 
     /** Referensi statis untuk menerima event dari service. */
     private static RideTrackingPlugin instance;
-
-    private PluginCall pendingPermissionCall;
 
     @Override
     public void load() {
@@ -116,8 +113,7 @@ public class RideTrackingPlugin extends Plugin {
         if ("granted".equals(permissionStateLocation())) {
             // Izin lokasi sudah ada — cukup minta notifikasi bila perlu
             if (!"granted".equals(permissionStateNotifications())) {
-                pendingPermissionCall = call;
-                requestPermissionForAlias(NOTIF_ALIAS, call, PERMISSIONS_REQUEST_CODE + 1);
+                requestPermissionForAlias(NOTIF_ALIAS, call, "onNotifPermissionResult");
                 return;
             }
             JSObject r = new JSObject();
@@ -126,36 +122,28 @@ public class RideTrackingPlugin extends Plugin {
             call.resolve(r);
             return;
         }
-        pendingPermissionCall = call;
-        requestPermissionForAlias(LOCATION_ALIAS, call, PERMISSIONS_REQUEST_CODE);
+        requestPermissionForAlias(LOCATION_ALIAS, call, "onLocationPermissionResult");
     }
 
-    @Override
-    protected void handleOnActivityResult() {
-        // tidak dipakai — izin ditangani lewat callback di bawah
-    }
-
-    @PermissionCallback(permission = LOCATION_ALIAS, requestCode = PERMISSIONS_REQUEST_CODE)
+    @PermissionCallback
     private void onLocationPermissionResult(PluginCall call) {
         String state = permissionStateLocation();
         if ("granted".equals(state) && !"granted".equals(permissionStateNotifications())) {
             // Lanjut minta izin notifikasi (Android 13+)
-            requestPermissionForAlias(NOTIF_ALIAS, call, PERMISSIONS_REQUEST_CODE + 1);
+            requestPermissionForAlias(NOTIF_ALIAS, call, "onNotifPermissionResult");
             return;
         }
         JSObject r = new JSObject();
         r.put("location", state);
         r.put("notifications", permissionStateNotifications());
-        pendingPermissionCall = null;
         call.resolve(r);
     }
 
-    @PermissionCallback(permission = NOTIF_ALIAS, requestCode = PERMISSIONS_REQUEST_CODE + 1)
+    @PermissionCallback
     private void onNotifPermissionResult(PluginCall call) {
         JSObject r = new JSObject();
         r.put("location", permissionStateLocation());
         r.put("notifications", permissionStateNotifications());
-        pendingPermissionCall = null;
         call.resolve(r);
     }
 
