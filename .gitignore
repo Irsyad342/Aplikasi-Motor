@@ -63,3 +63,12 @@ server.log
 /Caddyfile
 /worklog.md
 tool-results/
+
+# Android build lokal (Capacitor)
+/android/local.properties
+/android/.gradle/
+/android/app/build/
+/android/build/
+/android/capacitor-cordova-android-plugins/
+/android/app/src/main/assets/capacitor.config.json
+/android/keystore.properties

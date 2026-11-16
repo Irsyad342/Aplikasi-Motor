@@ -13,6 +13,7 @@ import { motion } from 'framer-motion'
 import {
   Activity,
   Bike,
+  Download,
   CalendarDays,
   CircleDollarSign,
   CloudUpload,
@@ -64,6 +65,12 @@ export interface RideViewProps {
   pendingSync: number
   /** Layar sedang dijaga tetap menyala (wake lock aktif) */
   wakeActive: boolean
+  /** Berjalan di WebView aplikasi Android (GPS native Foreground Service) */
+  nativeMode: boolean
+  /** Sesi native yatim: service dihentikan sistem, data masih tersimpan */
+  nativeOrphan: { startedAt: number; distanceKm: number } | null
+  onResumeNativeOrphan: () => void
+  onDiscardNativeOrphan: () => void
   onDeleteTrip: (id: string) => void
   onEditTrip: (id: string, data: { distance: number; date: string }) => Promise<void>
   /** Perjalanan tersimpan yang belum selesai (pulihan layar mati) */
@@ -112,6 +119,10 @@ export function RideView(props: RideViewProps) {
     finishing,
     pendingSync,
     wakeActive,
+    nativeMode,
+    nativeOrphan,
+    onResumeNativeOrphan,
+    onDiscardNativeOrphan,
     onDeleteTrip,
     onEditTrip,
     resume,
@@ -155,6 +166,7 @@ export function RideView(props: RideViewProps) {
   const wakeOk = mounted && typeof navigator !== 'undefined' && 'wakeLock' in navigator
 
   // ---------- Sheet lokal ----------
+  const [androidInfoOpen, setAndroidInfoOpen] = useState(false)
   const [finishOpen, setFinishOpen] = useState(false)
   const [detailTrip, setDetailTrip] = useState<TripDTO | null>(null)
   const [editTrip, setEditTrip] = useState<TripDTO | null>(null)
@@ -217,8 +229,37 @@ export function RideView(props: RideViewProps) {
 
   return (
     <div className="space-y-6">
+      {/* ---------- 00. Sesi native yatim: service GPS dihentikan sistem ---------- */}
+      {nativeOrphan && tracking === null && (
+        <Section>
+          <Card className="border-warn/50 bg-warn/10">
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-warn/20 text-warn">
+                <TriangleAlert size={19} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-extrabold text-foreground">
+                  Layanan GPS terhenti di tengah perjalanan
+                </p>
+                <p className="mt-0.5 text-[12px] font-semibold leading-snug text-muted-foreground">
+                  {formatKm1(nativeOrphan.distanceKm)} km · dimulai {formatTime(nativeOrphan.startedAt)} · data aman di perangkat
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 flex gap-2">
+              <Btn variant="lime" full onClick={onResumeNativeOrphan}>
+                <Play size={15} /> Lanjutkan
+              </Btn>
+              <Btn variant="danger" full onClick={onDiscardNativeOrphan}>
+                <Trash2 size={15} /> Buang
+              </Btn>
+            </div>
+          </Card>
+        </Section>
+      )}
+
       {/* ---------- 0. Perjalanan pulihan (aplikasi ditutup saat layar mati) ---------- */}
-      {resume && tracking === null && (
+      {!nativeOrphan && resume && tracking === null && (
         <Section>
           <Card className="border-lime/50 bg-lime/10">
             <div className="flex items-start gap-3">
@@ -316,6 +357,26 @@ export function RideView(props: RideViewProps) {
                 Rekam tanpa buka aplikasi
               </span>
             </div>
+
+            {!nativeMode && (
+              <button
+                type="button"
+                onClick={() => setAndroidInfoOpen(true)}
+                className="press mt-4 flex w-full items-center gap-2.5 rounded-2xl bg-white/8 px-4 py-3 text-left ring-1 ring-white/15 transition-colors hover:bg-white/15"
+              >
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-lime text-on-lime">
+                  <Download size={16} />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[12.5px] font-extrabold text-hero-foreground">
+                    Rekam saat layar terkunci? Pakai aplikasi Android
+                  </span>
+                  <span className="mt-0.5 block text-[11px] leading-snug text-hero-foreground/60">
+                    Browser berhenti merekam saat layar mati — layanan GPS native di aplikasi Android tidak
+                  </span>
+                </span>
+              </button>
+            )}
           </Card>
         ) : (
           <Card className="overflow-hidden rounded-[28px] bg-hero text-hero-foreground">
@@ -383,7 +444,12 @@ export function RideView(props: RideViewProps) {
               </div>
             )}
 
-            {wakeOk ? (
+            {nativeMode ? (
+              <p className="mt-3 flex items-center gap-1.5 text-[11px] font-semibold text-hero-foreground/60">
+                <Navigation size={12} className="text-lime" />
+                Layar terkunci pun tetap merekam — layanan GPS Android aktif dengan notifikasi persisten
+              </p>
+            ) : wakeOk ? (
               wakeActive ? (
                 <p className="mt-3 flex items-center gap-1.5 text-[11px] font-semibold text-hero-foreground/60">
                   <Smartphone size={12} className="text-lime" />
@@ -522,6 +588,35 @@ export function RideView(props: RideViewProps) {
           </>
         )}
       </Section>
+
+      {/* ---------- Sheet: info perekaman latar belakang (hanya browser) ---------- */}
+      <Sheet open={androidInfoOpen} onClose={() => setAndroidInfoOpen(false)} title="Rekam saat Layar Terkunci" zIndex={60}>
+        <div className="flex flex-col gap-3">
+          <p className="text-[13px] leading-relaxed text-muted-foreground">
+            Rekam GPS di browser hanya berjalan saat layar menyala. Ketika layar
+            ponsel mati, sistem membatasi browser sehingga jarak yang Anda
+            tempuh bisa tidak tercatat — ini batasan platform, bukan gangguan
+            aplikasi.
+          </p>
+          <div className="rounded-2xl bg-lime/10 p-4 ring-1 ring-lime/30">
+            <p className="flex items-center gap-2 text-[13px] font-extrabold text-foreground">
+              <Download size={16} className="text-foreground" />
+              Solusi: aplikasi Android MotoMate
+            </p>
+            <ul className="mt-2 space-y-1.5 text-[12.5px] leading-relaxed text-muted-foreground">
+              <li>• Layanan GPS native (Foreground Service) tetap merekam saat layar terkunci atau membuka aplikasi lain</li>
+              <li>• Notifikasi persisten menampilkan durasi &amp; jarak, lengkap tombol Selesai</li>
+              <li>• Data tersimpan di perangkat saat internet putus, sinkron otomatis saat online</li>
+              <li>• Akun &amp; data sama persis dengan versi web ini</li>
+            </ul>
+          </div>
+          <p className="text-[12px] leading-relaxed text-muted-foreground">
+            Unduh APK dari halaman rilis proyek (folder <span className="font-bold">android/</span> di
+            repositori) lalu pasang seperti aplikasi biasa. Riwayat perjalanan dari aplikasi Android
+            langsung tampil di sini.
+          </p>
+        </div>
+      </Sheet>
 
       {/* ---------- Sheet: akhiri perjalanan ---------- */}
       {tracking !== null && (

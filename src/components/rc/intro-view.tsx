@@ -43,6 +43,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useMounted } from '@/lib/use-mounted'
+import { LogoMark } from '@/components/rc/brand'
 
 const SLIDES = [
   {
@@ -563,10 +564,8 @@ export function IntroView({ onDone }: { onDone: () => void }) {
       <div className="flex w-full max-w-[430px] flex-col overflow-hidden">
         {/* ===== ATAS: brand + Lewati ===== */}
         <header className="flex items-center justify-between px-5 pt-[max(0.9rem,env(safe-area-inset-top))]">
-          <span className="mm-rise flex items-center gap-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-lime shadow-[0_6px_18px_-4px_rgba(163,230,53,0.5)]">
-              <Bike size={17} className="text-on-lime" strokeWidth={2.2} />
-            </span>
+          <span className="mm-rise flex items-center gap-2.5">
+            <LogoMark size={38} label="Logo MotoMate" />
             <span className="text-[15px] font-extrabold tracking-tight text-foreground">MotoMate</span>
           </span>
           <span className="mm-rise flex items-center gap-2">

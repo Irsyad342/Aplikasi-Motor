@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+  <rect width="120" height="120" rx="26" fill="#0A2018"/>
+  
+  <g fill="none" stroke="#DFFF00" stroke-width="8.4" stroke-linecap="round">
+    <path d="M 41.0 18.2 A 45 45 0 0 1 100.8 78.0" />
+    <path d="M 79.0 99.8 A 45 45 0 0 1 19.2 40.0" />
+  </g>
+  
+  <g>
+    <path d="M 33 26.5 L 28 37" stroke="#FFFFFF" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+    <path d="M 87 26.5 L 92 37" stroke="#FFFFFF" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+    <ellipse cx="29" cy="21" rx="10.2" ry="7" fill="#FFFFFF" transform="rotate(-26 29 21)"/>
+    <ellipse cx="91" cy="21" rx="10.2" ry="7" fill="#FFFFFF" transform="rotate(26 91 21)"/>
+    <path d="M 22.5 36 C 37 43.5 50 46.5 60 46.5 C 70 46.5 83 43.5 97.5 36 C 93 45 83 50.5 72.5 52 C 66 53 54 53 47.5 52 C 37 50.5 27 45 22.5 36 Z" fill="#FFFFFF"/>
+    <path d="M 42 51.5 C 47 50.5 53.5 50.8 57 53.2 C 58.8 54.5 61.2 54.5 63 53.2 C 66.5 50.8 73 50.5 78 51.5 C 76.5 63 72 73.5 67.5 78 C 64.6 80.8 55.4 80.8 52.5 78 C 48 73.5 43.5 63 42 51.5 Z" fill="#FFFFFF"/>
+    <rect x="52" y="80.5" width="16" height="23" rx="8" fill="#FFFFFF"/>
+  </g>
+  <path d="M 51 59 L 60 68.5 L 69 59" fill="none" stroke="#DFFF00" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

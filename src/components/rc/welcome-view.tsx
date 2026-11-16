@@ -9,12 +9,12 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import {
-  Bike,
   CircleDollarSign,
   Loader2,
   Route,
   Wrench,
 } from 'lucide-react'
+import { LogoMark } from '@/components/rc/brand'
 import { cn } from '@/lib/utils'
 
 const inputCls =
@@ -93,12 +93,12 @@ export function WelcomeView({
         {/* Perkenalan */}
         <div className="rounded-[32px] border border-border/60 bg-card p-6 shadow-[0_10px_40px_rgba(16,17,16,0.06)] sm:p-7">
           <motion.span
-            className="flex h-9 w-9 items-center justify-center rounded-xl bg-lime"
+            className="inline-flex"
             initial={{ rotate: -8, scale: 0.9 }}
             animate={{ rotate: 0, scale: 1 }}
             transition={{ type: 'spring', stiffness: 300, damping: 18 }}
           >
-            <Bike size={17} className="text-on-lime" />
+            <LogoMark size={38} />
           </motion.span>
 
           <h1 className="mt-4 text-[25px] font-extrabold leading-tight tracking-tight text-foreground">
@@ -142,9 +142,7 @@ export function WelcomeView({
           noValidate
         >
           <div className="flex items-center gap-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-lime">
-              <Bike size={17} className="text-on-lime" />
-            </span>
+            <LogoMark size={34} />
             <h2 className="text-[15px] font-extrabold text-foreground">Kendaraan Pertamamu</h2>
           </div>
 

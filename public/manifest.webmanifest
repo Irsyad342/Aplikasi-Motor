@@ -6,13 +6,21 @@
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "display_override": ["standalone", "fullscreen", "minimal-ui"],
+  "display_override": [
+    "standalone",
+    "fullscreen",
+    "minimal-ui"
+  ],
   "orientation": "portrait",
-  "background_color": "#101110",
-  "theme_color": "#101110",
+  "background_color": "#0A2018",
+  "theme_color": "#0A2018",
   "lang": "id",
   "dir": "ltr",
-  "categories": ["utilities", "travel", "auto"],
+  "categories": [
+    "utilities",
+    "travel",
+    "auto"
+  ],
   "icons": [
     {
       "src": "/images/app-icon-192.png",
@@ -39,14 +47,24 @@
       "short_name": "Perjalanan",
       "description": "Rekam perjalanan dengan GPS langsung",
       "url": "/?view=perjalanan",
-      "icons": [{ "src": "/images/app-icon-192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "/images/app-icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     },
     {
       "name": "Cari Bengkel",
       "short_name": "Bengkel",
       "description": "Bengkel terdekat di Pulau Jawa",
       "url": "/?view=bengkel",
-      "icons": [{ "src": "/images/app-icon-192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "/images/app-icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ]
 }

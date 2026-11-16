@@ -30,6 +30,16 @@ import {
 } from '@/lib/active-trip'
 import { formatKm, formatKm1, statusLabel } from '@/lib/status'
 import { enqueueTrip, queueSize, syncTrips } from '@/lib/trip-queue'
+import {
+  isNativeApp,
+  nativeDiscard,
+  nativeFinish,
+  nativeGetStatus,
+  nativeResume,
+  nativeStart,
+  onNativeTripFinished,
+  onNativeTripUpdate,
+} from '@/lib/native-trip'
 import { cn } from '@/lib/utils'
 import { BottomNav, type View } from '@/components/rc/nav'
 import {
@@ -197,6 +207,17 @@ export default function Home() {
   // Jumlah perjalanan yang menunggu sinkronisasi ke server (antrean offline)
   const [pendingSync, setPendingSync] = useState(0)
   const pendingSyncRef = useRef(0)
+  // Mode native Android (Capacitor WebView): GPS lewat Foreground Service
+  // native sehingga perekaman lanjut saat layar terkunci. false di browser.
+  const [nativeMode, setNativeMode] = useState(false)
+  const nativeModeRef = useRef(false)
+  // Sesi native yatim: service GPS dihentikan sistem tapi data masih ada
+  const [nativeOrphan, setNativeOrphan] = useState<{
+    startedAt: number
+    distanceKm: number
+  } | null>(null)
+  // Pemulihan status dari service native saat aplikasi dibuka kembali
+  const [nativeStarting, setNativeStarting] = useState(false)
 
   // Cermin state tracking untuk akses dari callback
   useEffect(() => {
@@ -274,6 +295,21 @@ export default function Home() {
     setLoadError(null)
     setView('home')
     setSettingsOpen(false)
+  }, [])
+
+  /** Ubah profil (nama/email) — PATCH /api/auth/me, lalu segarkan state lokal */
+  const renameUser = useCallback(async (data: { name?: string; email?: string }) => {
+    const res = await fetch('/api/auth/me', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    const json = (await res.json().catch(() => ({}))) as { user?: AuthUser; error?: string }
+    if (!res.ok || !json.user) {
+      throw new Error(json.error || 'Gagal menyimpan profil')
+    }
+    setUser(json.user)
+    toast.success('Profil diperbarui')
   }, [])
 
   const hydratedRef = useRef(false)
@@ -677,6 +713,74 @@ export default function Home() {
       resumeSavedTrip()
       return
     }
+    // ---------- Native Android: GPS via Foreground Service ----------
+    if (nativeModeRef.current) {
+      const veh = vehicle
+      if (!veh) return
+      setNativeStarting(true)
+      void (async () => {
+        const r = await nativeStart({
+          vehicleId: veh.id,
+          userId: user?.id,
+          source: autoTrack ? 'auto' : 'manual',
+        })
+        setNativeStarting(false)
+        if (!r) {
+          toast.error('Layanan GPS tidak tersedia di aplikasi ini')
+          return
+        }
+        if (r.started) {
+          lastPosRef.current = null
+          lastTsRef.current = 0
+          pathRef.current = []
+          setLivePath([])
+          setCurrentPos(null)
+          setGpsWaitSec(0)
+          setLocMode('waiting')
+          setTracking({ startedAt: r.startedAt ?? Date.now(), distance: 0, geoFixes: 0, movingMs: 0 })
+          toast.success('Perekaman dimulai, GPS native aktif')
+          return
+        }
+        if (r.reason === 'already_active' && r.startedAt) {
+          // Service ternyata sudah merekam — pulihkan UI, jangan gandakan sesi
+          setTracking({
+            startedAt: r.startedAt,
+            distance: r.distanceKm ?? 0,
+            geoFixes: 1,
+            movingMs: 0,
+          })
+          setLocMode('gps')
+          toast('Perekaman masih berjalan, status dipulihkan')
+          return
+        }
+        if (r.reason === 'gps_off') {
+          setGpsHelp({ open: true, reason: 'unavailable' })
+          toast.error('Aktifkan GPS (Layanan Lokasi) di pengaturan perangkat dulu')
+          return
+        }
+        // permission — coba minta izin lewat dialog Android, lalu mulai lagi
+        const perm = await nativeRequestPermissions()
+        if (perm && perm.location === 'granted') {
+          const retry = await nativeStart({
+            vehicleId: veh.id,
+            userId: user?.id,
+            source: autoTrack ? 'auto' : 'manual',
+          })
+          if (retry?.started) {
+            pathRef.current = []
+            setLivePath([])
+            setCurrentPos(null)
+            setLocMode('waiting')
+            setTracking({ startedAt: retry.startedAt ?? Date.now(), distance: 0, geoFixes: 0, movingMs: 0 })
+            toast.success('Perekaman dimulai, GPS native aktif')
+            return
+          }
+        }
+        setGpsHelp({ open: true, reason: 'denied' })
+        toast.error('Izin lokasi belum diberikan untuk MotoMate')
+      })()
+      return
+    }
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
       setGpsHelp({ open: true, reason: 'unsupported' })
       return
@@ -705,7 +809,7 @@ export default function Home() {
     beginWatch(true)
 
     toast.success('Mencari sinyal GPS, perekaman dimulai')
-  }, [savedTrip, resumeSavedTrip, locPos, locStatusRaw, locRefresh, beginWatch])
+  }, [savedTrip, resumeSavedTrip, locPos, locStatusRaw, locRefresh, beginWatch, vehicle, user, autoTrack])
 
   /**
    * Selesaikan rekam — SATU TEKAN langsung beres:
@@ -723,6 +827,35 @@ export default function Home() {
     if (!t || !veh) return
     finishingRef.current = true
     setFinishing(true)
+
+    // ---------- Native Android: finalisasi di service ----------
+    if (nativeModeRef.current) {
+      // UI ditutup segera setelah service konfirmasi lewat event
+      // onTripFinished (jarak/durasi/sinkron dihitung & disimpan native).
+      // Tanpa internet: trip aman di SQLite, dikirim saat koneksi kembali.
+      void (async () => {
+        const r = await nativeFinish()
+        if (r?.alreadyStopped) {
+          // Service sudah berhenti sebelumnya (mis. lewat notifikasi)
+          abortTrackingUi()
+          setFinishing(false)
+          finishingRef.current = false
+          toast('Perekaman sudah dihentikan sebelumnya')
+        }
+        // Bila event tidak sampai (kasus sangat jarang), buka UI tetap
+        // setelah 10 detik — data aman di perangkat, status konsisten.
+        window.setTimeout(() => {
+          setFinishing((f) => {
+            if (f) {
+              setFinishing(false)
+              finishingRef.current = false
+            }
+            return f
+          })
+        }, 10_000)
+      })()
+      return
+    }
 
     // 1) Hentikan GPS & penjaga layar segera
     stopTrackingSensors()
@@ -795,6 +928,14 @@ export default function Home() {
 
   /** Hentikan rekam tanpa menyimpan (dari sheet akhiri perjalanan) */
   const discardTracking = useCallback(() => {
+    if (nativeModeRef.current) {
+      void (async () => {
+        await nativeDiscard()
+        abortTrackingUi()
+        toast('Perjalanan dibuang, tidak ada data tersimpan')
+      })()
+      return
+    }
     stopTrackingSensors()
     abortTrackingUi()
     toast('Perjalanan dibuang, tidak ada data tersimpan')
@@ -824,9 +965,104 @@ export default function Home() {
     }
   }, [liveTracking, acquireWakeLock, releaseWakeLock, persistTrip])
 
+  // ---------- Mode native Android: deteksi + pemulihan sesi ----------
+  useEffect(() => {
+    const native = isNativeApp()
+    nativeModeRef.current = native
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- deteksi platform native (sistem eksternal WebView)
+    setNativeMode(native)
+    if (!native) return
+    let alive = true
+    void (async () => {
+      const st = await nativeGetStatus()
+      if (!alive || !st) return
+      if (st.serviceActive && st.active && st.startedAt) {
+        // Service GPS masih berjalan (mungkin dibuka aplikasi lain / layar
+        // mati) — pulihkan UI live dari status nyata service.
+        setTracking({
+          startedAt: st.startedAt,
+          distance: st.distanceKm ?? 0,
+          geoFixes: st.fixes ?? 0,
+          movingMs: (st.movingSec ?? 0) * 1000,
+        })
+        setLocMode('gps')
+        if (typeof st.pendingSync === 'number') {
+          pendingSyncRef.current = Math.max(pendingSyncRef.current, st.pendingSync)
+          setPendingSync(pendingSyncRef.current)
+        }
+      } else if (st.orphanSession && (st.distanceKm ?? 0) > 0) {
+        // Service dihentikan sistem di tengah sesi — tawarkan lanjut, jangan
+        // mulai sesi baru secara diam-diam.
+        setNativeOrphan({
+          startedAt: st.startedAt ?? Date.now(),
+          distanceKm: st.distanceKm ?? 0,
+        })
+        if (typeof st.pendingSync === 'number') {
+          pendingSyncRef.current = Math.max(pendingSyncRef.current, st.pendingSync)
+          setPendingSync(pendingSyncRef.current)
+        }
+      }
+    })()
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  // Event live dari Foreground Service native (jarak, durasi, fix)
+  useEffect(() => {
+    if (!nativeMode) return
+    let removeUpdate: (() => void) | null = null
+    let removeFinished: (() => void) | null = null
+    let alive = true
+    void (async () => {
+      const u1 = await onNativeTripUpdate((u) => {
+        setTracking((prev) =>
+          prev
+            ? {
+                ...prev,
+                distance: u.distanceKm,
+                movingMs: u.movingSec * 1000,
+                geoFixes: u.fixes,
+              }
+            : prev
+        )
+        setLocMode('gps')
+      })
+      const u2 = await onNativeTripFinished((f) => {
+        // Service selesai: tutup UI rekam + pesan jujur sesuai hasil sinkron
+        abortTrackingUi()
+        setFinishing(false)
+        finishingRef.current = false
+        pendingSyncRef.current = f.pendingSync
+        setPendingSync(f.pendingSync)
+        if (!f.saved) {
+          toast.error('Belum ada data GPS, perjalanan tidak disimpan')
+        } else if (f.synced) {
+          toast.success(`Perjalanan ${formatKm1(f.distanceKm)} km tersimpan`)
+          void loadState(vehicleId ?? undefined)
+        } else {
+          toast('Perjalanan tersimpan di perangkat, menunggu sinkronisasi')
+          void loadState(vehicleId ?? undefined)
+        }
+      })
+      if (!alive) {
+        u1()
+        u2()
+        return
+      }
+      removeUpdate = u1
+      removeFinished = u2
+    })()
+    return () => {
+      alive = false
+      removeUpdate?.()
+      removeFinished?.()
+    }
+  }, [nativeMode, abortTrackingUi, loadState, vehicleId])
+
   // Pulihkan perjalanan yang belum selesai (mis. aplikasi dimatikan saat layar mati)
   useEffect(() => {
-    if (!user) return
+    if (!user || nativeModeRef.current) return
     const t = readActiveTrip()
     // eslint-disable-next-line react-hooks/set-state-in-effect -- pulihan dari localStorage (sistem eksternal), sesuai pola hidrasi cache
     if (t && t.distance > 0) setSavedTrip(t)
@@ -1368,9 +1604,32 @@ export default function Home() {
                   onStartTracking={() => startTracking()}
                   onFinishTracking={finishTracking}
                   onDiscardTracking={discardTracking}
-                  finishing={finishing}
+                  finishing={finishing || nativeStarting}
                   pendingSync={pendingSync}
                   wakeActive={wakeActive}
+                  nativeMode={nativeMode}
+                  nativeOrphan={nativeOrphan}
+                  onResumeNativeOrphan={() => {
+                    void (async () => {
+                      const r = await nativeResume()
+                      if (r?.resumed) {
+                        setNativeOrphan(null)
+                        toast.success('Perekaman dilanjutkan')
+                      } else if (r?.reason === 'permission') {
+                        setGpsHelp({ open: true, reason: 'denied' })
+                      } else {
+                        setNativeOrphan(null)
+                        toast.error('Sesi tidak dapat dilanjutkan')
+                      }
+                    })()
+                  }}
+                  onDiscardNativeOrphan={() => {
+                    void (async () => {
+                      await nativeDiscard()
+                      setNativeOrphan(null)
+                      toast('Perjalanan tersisa dibuang')
+                    })()
+                  }}
                   onDeleteTrip={deleteTrip}
                   onEditTrip={editTrip}
                   resume={savedTrip}
@@ -1681,6 +1940,7 @@ export default function Home() {
                 user={user}
                 vehicles={state.vehicles}
                 currentVehicleId={vehicle.id}
+                records={state.records}
                 reminder={reminder}
                 onToggleReminder={toggleReminder}
                 onAddVehicle={() => {
@@ -1695,6 +1955,11 @@ export default function Home() {
                 onResetData={() => setConfirmReset(true)}
                 onLogout={logout}
                 onBack={() => setSettingsOpen(false)}
+                onOpenHistory={() => {
+                  setSettingsOpen(false)
+                  setView('history')
+                }}
+                onRenameUser={renameUser}
               />
             </motion.div>
           )}

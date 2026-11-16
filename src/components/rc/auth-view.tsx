@@ -21,6 +21,7 @@ import {
   EyeOff,
   Loader2,
 } from 'lucide-react'
+import { LogoMark } from '@/components/rc/brand'
 import { cn } from '@/lib/utils'
 import { IntroView } from '@/components/rc/intro-view'
 
@@ -215,14 +216,14 @@ export function AuthView({ onAuthed }: { onAuthed: (user: AuthUser) => void }) {
         <div className="rounded-[32px] border border-border/60 bg-card p-6 shadow-[0_10px_40px_rgba(16,17,16,0.06)] sm:p-7">
           {/* Bar brand ringkas — tanpa badge sparkle */}
           <Stagger>
-            <span className="flex items-center gap-2">
+            <span className="flex items-center gap-2.5">
               <motion.span
-                className="flex h-9 w-9 items-center justify-center rounded-xl bg-lime"
                 initial={{ rotate: -8, scale: 0.9 }}
                 animate={{ rotate: 0, scale: 1 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 18 }}
+                className="inline-flex"
               >
-                <Bike size={17} className="text-on-lime" />
+                <LogoMark size={38} />
               </motion.span>
               <span className="text-[14px] font-extrabold tracking-tight text-foreground">
                 MotoMate

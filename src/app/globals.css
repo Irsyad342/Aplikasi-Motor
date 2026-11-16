@@ -266,3 +266,46 @@
     font-weight: 800;
   }
 }
+
+/* ---------- Logo MotoMate (brand.tsx) — adaptif tema ---------- */
+  /* ---------- Logo MotoMate (brand.tsx) — adaptif tema ---------- */
+.mm-logo-ring {
+    stroke: var(--lime);
+  }
+.mm-logo-body {
+    fill: #123528; /* deep forest green di mode terang */
+  }
+  .dark .mm-logo-body {
+    fill: #ffffff; /* putih di mode gelap */
+  }
+.mm-logo-stroke {
+    stroke: #123528;
+  }
+  .dark .mm-logo-stroke {
+    stroke: #ffffff;
+  }
+.mm-logo-tile {
+    fill: #ffffff;
+  }
+  .dark .mm-logo-tile {
+    fill: #0a2018; /* hijau sangat gelap di mode gelap */
+  }
+  /* Varian tetap (pratinjau tema onboarding) */
+.mm-logo-body-light {
+    fill: #123528;
+  }
+.mm-logo-body-dark {
+    fill: #ffffff;
+  }
+.mm-logo-stroke-light {
+    stroke: #123528;
+  }
+.mm-logo-stroke-dark {
+    stroke: #ffffff;
+  }
+.mm-logo-tile-light {
+    fill: #ffffff;
+  }
+.mm-logo-tile-dark {
+    fill: #0a2018;
+  }
